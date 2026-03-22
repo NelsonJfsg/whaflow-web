@@ -7,16 +7,29 @@
 	<article class="settings-card" aria-live="polite">
 		<div class="card-header">
 			<h2>QR de WhatsApp</h2>
-			<button type="button" class="refresh-button" [disabled]="isLoadingQr()" (click)="loadQr()">
-				@if (isLoadingQr()) {
-					Actualizando...
-				} @else {
-					Recargar QR
-				}
-			</button>
+			<div class="header-actions">
+				<button type="button" class="refresh-button" [disabled]="isLoadingQr() || isLoggingOut()" (click)="loadQr()">
+					@if (isLoadingQr()) {
+						Actualizando...
+					} @else {
+						Recargar QR
+					}
+				</button>
+				<button type="button" class="logout-button" [disabled]="isLoggingOut() || isLoadingQr()" (click)="logoutConnection()">
+					@if (isLoggingOut()) {
+						Cerrando...
+					} @else {
+						Cerrar Sesion WhatsApp
+					}
+				</button>
+			</div>
 		</div>
 
 		<p class="status-text">{{ qrStatusText() }}</p>
+
+		@if (logoutFeedback()) {
+			<p class="status-text">{{ logoutFeedback() }}</p>
+		}
 
 		@if (qrError()) {
 			<p class="error-text">{{ qrError() }}</p>

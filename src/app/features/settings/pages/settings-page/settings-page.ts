@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
 import { LoggedSessionInfo, SettingsService } from '../../services/settings.service';
 
@@ -11,15 +11,24 @@ import { LoggedSessionInfo, SettingsService } from '../../services/settings.serv
 })
 export class SettingsPage implements OnInit {
   private readonly settingsService = inject(SettingsService);
+  private readonly refreshIntervalMs = 10000;
+  private qrRefreshTimerId: ReturnType<typeof setInterval> | null = null;
 
   protected readonly qrImageSrc = signal<string>('');
   protected readonly qrStatusText = signal<string>('Aun no hay QR cargado.');
   protected readonly qrError = signal<string>('');
+  protected readonly logoutFeedback = signal<string>('');
   protected readonly isLoadingQr = signal<boolean>(false);
+  protected readonly isLoggingOut = signal<boolean>(false);
   protected readonly loggedSession = signal<LoggedSessionInfo | null>(null);
 
   ngOnInit(): void {
     this.loadQr();
+    this.startAutoRefresh();
+  }
+
+  ngOnDestroy(): void {
+    this.stopAutoRefresh();
   }
 
   protected loadQr(): void {
@@ -29,6 +38,7 @@ export class SettingsPage implements OnInit {
 
     this.isLoadingQr.set(true);
     this.qrError.set('');
+    this.logoutFeedback.set('');
     this.qrStatusText.set('Generando QR de conexion...');
 
     this.settingsService
@@ -41,10 +51,12 @@ export class SettingsPage implements OnInit {
             this.loggedSession.set(sessionInfo);
             this.qrImageSrc.set('');
             this.qrStatusText.set('Tu sesion de WhatsApp ya esta conectada.');
+            this.stopAutoRefresh();
             return;
           }
 
           this.loggedSession.set(null);
+          this.startAutoRefresh();
           const payload = this.settingsService.toQrPayload(response);
           this.qrImageSrc.set(payload?.qrImageSrc ?? '');
           this.qrStatusText.set(
@@ -55,10 +67,65 @@ export class SettingsPage implements OnInit {
         },
         error: () => {
           this.loggedSession.set(null);
+          this.startAutoRefresh();
           this.qrImageSrc.set('');
           this.qrError.set('No fue posible conectar con http://localhost:3001/device/login.');
           this.qrStatusText.set('Error al generar QR.');
         },
       });
+  }
+
+  protected logoutConnection(): void {
+    if (this.isLoggingOut()) {
+      return;
+    }
+
+    this.isLoggingOut.set(true);
+    this.qrError.set('');
+    this.logoutFeedback.set('Cerrando sesion de WhatsApp...');
+
+    this.settingsService
+      .logoutWhatsappConnection()
+      .pipe(finalize(() => this.isLoggingOut.set(false)))
+      .subscribe({
+        next: () => {
+          this.loggedSession.set(null);
+          this.qrImageSrc.set('');
+          this.logoutFeedback.set('Sesion cerrada. Solicitando un nuevo QR...');
+          this.startAutoRefresh();
+          this.loadQr();
+        },
+        error: () => {
+          this.logoutFeedback.set('No fue posible cerrar sesion en /device/logout.');
+        },
+      });
+  }
+
+  private startAutoRefresh(): void {
+    if (this.loggedSession()) {
+      return;
+    }
+
+    if (this.qrRefreshTimerId !== null) {
+      return;
+    }
+
+    this.stopAutoRefresh();
+    this.qrRefreshTimerId = setInterval(() => {
+      if (this.isLoggingOut() || this.loggedSession()) {
+        return;
+      }
+
+      this.loadQr();
+    }, this.refreshIntervalMs);
+  }
+
+  private stopAutoRefresh(): void {
+    if (this.qrRefreshTimerId === null) {
+      return;
+    }
+
+    clearInterval(this.qrRefreshTimerId);
+    this.qrRefreshTimerId = null;
   }
 }

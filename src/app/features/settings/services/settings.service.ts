@@ -21,10 +21,10 @@ export interface LoggedSessionInfo {
 export class SettingsService {
   private readonly httpClient = inject(HttpClient);
   private readonly loginEndpoint = 'http://localhost:3001/device/login';
-  private readonly logoutEndpoint = 'http://localhost:3001/device/logut';
+  private readonly logoutEndpoint = 'http://localhost:3001/device/logout';
 
   getLoginQr(): Observable<unknown> {
-    return this.httpClient.get(this.loginEndpoint, {});
+    return this.httpClient.post(this.loginEndpoint, {});
   }
 
   logoutWhatsappConnection(): Observable<unknown> {
@@ -37,21 +37,30 @@ export class SettingsService {
       return null;
     }
 
-    const container = this.asRecord(root['results']) ?? root;
+    const container = this.asRecord(root['results']);
+    if (!container) {
+      return null;
+    }
+
+    const isReady = this.firstBoolean(container, ['is_ready', 'isReady']) ?? false;
+    if (!isReady) {
+      return null;
+    }
+
     const session = this.asRecord(container['session']);
     if (!session) {
       return null;
     }
 
     const state = this.firstString(session, ['state']);
-    const jid = this.firstString(session, ['jid']);
-    if (state !== 'logged_in' || !jid) {
+    if (state !== 'logged_in') {
       return null;
     }
 
+    const jid = this.firstString(session, ['jid']) || 'No disponible';
+
     const deviceId = this.firstString(container, ['device_id', 'deviceId']) || 'No disponible';
     const qrDuration = this.firstNumber(container, ['qr_duration', 'qrDuration']) ?? 0;
-    const isReady = this.firstBoolean(container, ['is_ready', 'isReady']) ?? false;
 
     return {
       deviceId,
@@ -68,41 +77,25 @@ export class SettingsService {
       return null;
     }
 
-    const directBase64 = this.firstString(root, ['qr_png_base64', 'qrPngBase64', 'qr_base64']);
-    if (directBase64) {
+    const container = this.asRecord(root['results']);
+    if (!container) {
+      return null;
+    }
+
+    const qrBase64 = this.firstString(container, ['qr_png_base64', 'qrPngBase64', 'qr_base64']);
+    if (qrBase64) {
       return {
-        qrImageSrc: this.asPngDataUrl(directBase64),
+        qrImageSrc: this.asPngDataUrl(qrBase64),
         source: 'base64',
       };
     }
 
-    const nested = this.asRecord(root['results']) ?? this.asRecord(root['result']) ?? this.asRecord(root['data']);
-    if (nested) {
-      const nestedBase64 = this.firstString(nested, ['qr_png_base64', 'qrPngBase64', 'qr_base64']);
-      if (nestedBase64) {
-        return {
-          qrImageSrc: this.asPngDataUrl(nestedBase64),
-          source: 'base64',
-        };
-      }
-    }
-
-    const directUrl = this.firstString(root, ['qr_link', 'qrLink']);
-    if (directUrl) {
+    const qrUrl = this.firstString(container, ['qr_link', 'qrLink']);
+    if (qrUrl) {
       return {
-        qrImageSrc: directUrl,
+        qrImageSrc: qrUrl,
         source: 'url',
       };
-    }
-
-    if (nested) {
-      const nestedUrl = this.firstString(nested, ['qr_link', 'qrLink']);
-      if (nestedUrl) {
-        return {
-          qrImageSrc: nestedUrl,
-          source: 'url',
-        };
-      }
     }
 
     return null;
