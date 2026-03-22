@@ -1,1 +1,58 @@
-<p>settings-page works!</p>,
+<section class="settings-page" aria-labelledby="settings-title">
+	<header class="settings-header">
+		<h1 id="settings-title">Configuracion de Conexion</h1>
+		<p>Genera y escanea tu codigo QR para conectar WhatsApp desde este panel.</p>
+	</header>
+
+	<article class="settings-card" aria-live="polite">
+		<div class="card-header">
+			<h2>QR de WhatsApp</h2>
+			<button type="button" class="refresh-button" [disabled]="isLoadingQr()" (click)="loadQr()">
+				@if (isLoadingQr()) {
+					Actualizando...
+				} @else {
+					Recargar QR
+				}
+			</button>
+		</div>
+
+		<p class="status-text">{{ qrStatusText() }}</p>
+
+		@if (qrError()) {
+			<p class="error-text">{{ qrError() }}</p>
+		}
+
+		@if (loggedSession(); as session) {
+			<section class="session-card" aria-label="Informacion de sesion activa">
+				<p class="session-badge">Conectado</p>
+				<p class="session-title">Tu dispositivo ya esta listo para usarse</p>
+				<div class="session-grid">
+					<div class="session-item">
+						<span class="session-label">Device ID</span>
+						<span class="session-value">{{ session.deviceId }}</span>
+					</div>
+					<div class="session-item">
+						<span class="session-label">Estado</span>
+						<span class="session-value">{{ session.state }}</span>
+					</div>
+					<div class="session-item">
+						<span class="session-label">JID</span>
+						<span class="session-value">{{ session.jid }}</span>
+					</div>
+					<div class="session-item">
+						<span class="session-label">QR Duration</span>
+						<span class="session-value">{{ session.qrDuration }}</span>
+					</div>
+				</div>
+			</section>
+		} @else {
+			<div class="qr-frame" [class.loading]="isLoadingQr()">
+				@if (qrImageSrc()) {
+					<img class="qr-image" [src]="qrImageSrc()" alt="Codigo QR de inicio de sesion de WhatsApp" />
+				} @else {
+					<p class="empty-state">No hay QR disponible en este momento.</p>
+				}
+			</div>
+		}
+	</article>
+</section>

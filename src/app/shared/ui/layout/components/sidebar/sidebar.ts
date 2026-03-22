@@ -20,29 +20,29 @@ export class Sidebar {
 
   public navItems : NavItem[] = [
     {
-      id : 0,
-      title : 'Home',
-      iconName : 'home',
-      routeLink : 'home'
+      id : 1,
+      title : 'Tareas programadas',
+      iconName : 'task',
+      routeLink : 'tasks'
     },
     {
-      id : 1,
+      id : 2,
       title : 'Dashboard',
       iconName : 'dashboard',
       routeLink : 'dashboard'
     },
-    {
-      id : 2,
-      title : 'Security',
-      iconName : 'security',
-      routeLink : 'security'
-    },
-    {
-      id : 3,
-      title : 'Wallet',
-      iconName : 'wallet',
-      routeLink : 'wallet'
-    }
+    // {
+    //   id : 2,
+    //   title : 'Security',
+    //   iconName : 'security',
+    //   routeLink : 'security'
+    // },
+    // {
+    //   id : 3,
+    //   title : 'Wallet',
+    //   iconName : 'wallet',
+    //   routeLink : 'wallet'
+    // }
   ];
 
   public navFootersItems : NavItem[] = [

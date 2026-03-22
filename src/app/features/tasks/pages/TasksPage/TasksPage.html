@@ -1,0 +1,408 @@
+<section class="scheduling-editor" aria-labelledby="scheduling-title">
+	<header class="editor-header">
+		<h1 id="scheduling-title">Editor de Programacion</h1>
+		<p>Configura y automatiza tus envios de mensajes con precision.</p>
+	</header>
+
+	<form class="editor-grid" [formGroup]="schedulerForm" (ngSubmit)="saveSchedule()" novalidate>
+		<article class="editor-card message-card" aria-labelledby="message-content-title">
+			<div class="card-header card-header-inline">
+				<h2 id="message-content-title">Contenido del Mensaje</h2>
+				<div class="placeholder-group" aria-label="Placeholders">
+					@for (placeholder of placeholders; track placeholder) {
+						<button
+							type="button"
+							class="chip"
+							(click)="insertPlaceholder(placeholder, messageField)"
+						>
+							{{ placeholder }}
+						</button>
+					}
+				</div>
+			</div>
+
+			<label class="sr-only" for="message-content">Contenido del mensaje</label>
+			<textarea
+				#messageField
+				id="message-content"
+				class="message-input"
+				rows="7"
+				formControlName="message"
+				placeholder="Escribe aqui tu mensaje automatico... Usa {name} para personalizar."
+			></textarea>
+
+			@if (schedulerForm.controls.message.invalid && schedulerForm.controls.message.touched) {
+				<p class="field-error">Escribe un mensaje completo (al menos 10 caracteres).</p>
+			}
+
+			<div class="message-preview" aria-live="polite">
+				<span class="preview-icon" aria-hidden="true">i</span>
+				<p>{{ previewMessage() }}</p>
+			</div>
+		</article>
+
+		<aside class="right-column">
+			<article class="editor-card" aria-labelledby="frequency-title">
+				<div class="card-header">
+					<h2 id="frequency-title">Frecuencia</h2>
+				</div>
+
+				<div class="repeat-toggle" role="radiogroup" aria-label="Repeat message">
+					<p class="section-label">Repetir envio?</p>
+					<div class="repeat-actions">
+						<button
+							type="button"
+							class="option-button"
+							role="radio"
+							[attr.aria-checked]="schedulerForm.controls.repeat.value"
+							[class.is-active]="schedulerForm.controls.repeat.value"
+							(click)="selectRepeat(true)"
+						>
+							Si
+						</button>
+
+						<button
+							type="button"
+							class="option-button"
+							role="radio"
+							[attr.aria-checked]="!schedulerForm.controls.repeat.value"
+							[class.is-active]="!schedulerForm.controls.repeat.value"
+							(click)="selectRepeat(false)"
+						>
+							No
+						</button>
+					</div>
+				</div>
+
+				@if (schedulerForm.controls.repeat.value) {
+					<div class="frequency-grid" role="radiogroup" aria-label="Message frequency">
+						@for (frequency of frequencies; track frequency.value) {
+							<button
+								type="button"
+								class="option-button"
+								role="radio"
+								[attr.aria-checked]="schedulerForm.controls.frequencyOption.value === frequency.value"
+								[attr.aria-pressed]="schedulerForm.controls.frequencyOption.value === frequency.value"
+								[class.is-active]="schedulerForm.controls.frequencyOption.value === frequency.value"
+								(click)="selectFrequency(frequency.value)"
+							>
+								{{ frequency.label }}
+							</button>
+						}
+					</div>
+
+					@if (isCustomFrequencySelected) {
+						<div class="custom-frequency">
+							<label for="custom-frequency">Minutos</label>
+							<input
+								id="custom-frequency"
+								type="number"
+								inputmode="numeric"
+								min="1"
+								step="1"
+								[value]="schedulerForm.controls.frequency.value"
+								(input)="updateCustomFrequency(customFrequency.value)"
+								#customFrequency
+							/>
+						</div>
+					}
+
+					<div class="send-window-section" aria-labelledby="send-window-title">
+						<div class="send-window-header">
+							<p id="send-window-title" class="section-label">Ventana diaria de envio</p>
+							<div class="send-window-toggle" role="radiogroup" aria-label="Activar ventana diaria">
+								<button
+									type="button"
+									class="option-button"
+									[class.is-active]="schedulerForm.controls.useSendWindow.value"
+									(click)="toggleSendWindow(true)"
+								>
+									Con ventana
+								</button>
+								<button
+									type="button"
+									class="option-button"
+									[class.is-active]="!schedulerForm.controls.useSendWindow.value"
+									(click)="toggleSendWindow(false)"
+								>
+									Indefinido
+								</button>
+							</div>
+						</div>
+
+						@if (schedulerForm.controls.useSendWindow.value) {
+							<div class="send-window-grid">
+								<mat-form-field appearance="outline" subscriptSizing="dynamic" class="time-field">
+									<mat-label>Desde</mat-label>
+									<input matInput id="send-window-start" type="time" formControlName="sendWindowStart" />
+								</mat-form-field>
+
+								<mat-form-field appearance="outline" subscriptSizing="dynamic" class="time-field">
+									<mat-label>Hasta</mat-label>
+									<input matInput id="send-window-end" type="time" formControlName="sendWindowEnd" />
+								</mat-form-field>
+							</div>
+
+							@if ((schedulerForm.controls.sendWindowStart.invalid || schedulerForm.controls.sendWindowEnd.invalid) && (schedulerForm.controls.sendWindowStart.touched || schedulerForm.controls.sendWindowEnd.touched)) {
+								<p class="field-error">Usa formato de hora valido (HH:mm).</p>
+							}
+
+							@if (hasSendWindowRangeError) {
+								<p class="field-error">La hora de inicio debe ser menor que la hora final.</p>
+							}
+						}
+					</div>
+
+					@if (schedulerForm.controls.frequency.touched && schedulerForm.controls.frequency.value <= 0) {
+						<p class="field-error">La frecuencia debe ser un numero entero mayor a 0.</p>
+					}
+				} @else {
+					<p class="frequency-off">Sin repeticion. La frecuencia se enviara como 0.</p>
+				}
+			</article>
+
+			<article class="editor-card" aria-labelledby="recipient-title">
+				<div class="card-header">
+					<h2 id="recipient-title">Tipo de Destinatario</h2>
+				</div>
+
+				<div class="recipient-type" role="radiogroup" aria-label="Recipient type">
+					<button
+						type="button"
+						class="option-button"
+						role="radio"
+						[attr.aria-checked]="schedulerForm.controls.recipientType.value === 'private'"
+						[attr.aria-pressed]="schedulerForm.controls.recipientType.value === 'private'"
+						[class.is-active]="schedulerForm.controls.recipientType.value === 'private'"
+						(click)="selectRecipientType('private')"
+					>
+						Chat Privado
+					</button>
+
+					<button
+						type="button"
+						class="option-button"
+						role="radio"
+						[attr.aria-checked]="schedulerForm.controls.recipientType.value === 'group'"
+						[attr.aria-pressed]="schedulerForm.controls.recipientType.value === 'group'"
+						[class.is-active]="schedulerForm.controls.recipientType.value === 'group'"
+						(click)="selectRecipientType('group')"
+					>
+						Grupo
+					</button>
+				</div>
+
+				@if (schedulerForm.controls.recipientType.value === 'group') {
+					<div class="chat-type-selection-summary" aria-live="polite">
+						@if (selectedGroup(); as group) {
+							<p class="chat-type-selection-title">Grupo seleccionado actualmente</p>
+							<p class="chat-type-selection-name">{{ group.Name }}</p>
+							<p class="chat-type-selection-id">{{ group.JID }}</p>
+						} @else {
+							<p class="chat-type-selection-title">Grupo seleccionado actualmente</p>
+							<p class="field-error">Selecciona un grupo para enviar el mensaje.</p>
+						}
+
+						<div class="group-actions">
+							<button type="button" class="add-recipient" (click)="openGroupSelector()">
+								@if (selectedGroup()) {
+									Cambiar Grupo
+								} @else {
+									Seleccionar Grupo
+								}
+							</button>
+							@if (selectedGroup()) {
+								<button type="button" class="clear-selection" (click)="clearSelectedGroup()">Quitar</button>
+							}
+							@if (isLoadingGroups()) {
+								<p class="scheduled-helper">Cargando grupos...</p>
+							}
+							@if (groupsLoadError()) {
+								<p class="field-error">{{ groupsLoadError() }}</p>
+							}
+						</div>
+					</div>
+				}
+
+				@if (schedulerForm.controls.recipientType.value === 'private') {
+					<div class="recipient-list" aria-label="Recipient list">
+						@for (recipientControl of recipientsArray.controls; track $index) {
+							<div class="recipient-item">
+								<div class="recipient-avatar" aria-hidden="true">{{ recipientInitials(recipientControl.value.name ?? '') }}</div>
+								<div class="recipient-data">
+									<p class="recipient-name">{{ recipientControl.value.name }}</p>
+									<p class="recipient-phone">{{ recipientControl.value.phone }}</p>
+								</div>
+								<button
+									type="button"
+									class="remove-recipient"
+									aria-label="Eliminar destinatario"
+									(click)="removeRecipient($index)"
+								>
+									x
+								</button>
+							</div>
+						}
+					</div>
+
+					@if (recipientsArray.length === 0) {
+						<p class="field-error">Agrega al menos un destinatario.</p>
+					}
+
+					<div class="add-recipient-form">
+						<label class="sr-only" for="recipient-name">Nombre del destinatario</label>
+						<input
+							id="recipient-name"
+							type="text"
+							formControlName="recipientName"
+							placeholder="Nombre del destinatario"
+						/>
+
+						<label class="sr-only" for="recipient-phone">Telefono del destinatario</label>
+						<input
+							id="recipient-phone"
+							type="tel"
+							formControlName="recipientPhone"
+							placeholder="Numero de telefono"
+						/>
+
+						<button type="button" class="add-recipient" (click)="addRecipient()">+ Agregar Destinatario</button>
+
+						@if (schedulerForm.controls.recipientName.invalid && schedulerForm.controls.recipientName.touched) {
+							<p class="field-error">El nombre debe contener al menos 2 caracteres.</p>
+						}
+
+						@if (schedulerForm.controls.recipientPhone.invalid && schedulerForm.controls.recipientPhone.touched) {
+							<p class="field-error">El formato del telefono no es valido.</p>
+						}
+					</div>
+				}
+			</article>
+		</aside>
+
+		<div class="form-actions">
+      @if (saveFeedback()) {
+				<p class="save-feedback" aria-live="polite">{{ saveFeedback() }}</p>
+			}
+			<button type="submit" class="save-button" [disabled]="isSending()">
+				@if (isSending()) {
+					Enviando...
+				} @else {
+					Guardar Programacion
+				}
+			</button>
+			
+		</div>
+	</form>
+
+	@if (isGroupModalOpen()) {
+		<div class="group-modal-backdrop" (click)="closeGroupSelector()" aria-hidden="true"></div>
+		<section
+			class="group-modal"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="group-modal-title"
+		>
+			<header class="group-modal-header">
+				<h3 id="group-modal-title">Selecciona un grupo</h3>
+				<button type="button" class="clear-selection" (click)="closeGroupSelector()" aria-label="Cerrar modal">
+					Cerrar
+				</button>
+			</header>
+
+			@if (isLoadingGroups()) {
+				<p class="scheduled-helper">Cargando grupos...</p>
+			} @else if (groupsLoadError()) {
+				<p class="field-error">{{ groupsLoadError() }}</p>
+			} @else if (!hasGroups()) {
+				<p class="scheduled-helper">No hay grupos para mostrar.</p>
+			} @else {
+				<div class="group-list" role="listbox" aria-label="Lista de grupos disponibles">
+					@for (group of availableGroups(); track trackGroup($index, group)) {
+						<button
+							type="button"
+							class="group-item"
+							[class.is-selected]="schedulerForm.controls.groupId.value === group.JID"
+							(click)="selectGroup(group)"
+						>
+							<span class="group-item-name">{{ group.Name }}</span>
+							<span class="group-item-id">{{ group.JID }}</span>
+							<span class="group-item-meta">{{ group.ParticipantCount }} participantes</span>
+						</button>
+					}
+				</div>
+			}
+		</section>
+	}
+
+	<section class="scheduled-section" aria-labelledby="scheduled-title">
+		<div class="card-header scheduled-header">
+			<h2 id="scheduled-title">Mensajes Programados</h2>
+		</div>
+
+		@if (isLoadingScheduled()) {
+			<p class="scheduled-helper">Cargando tareas programadas...</p>
+		} @else if (scheduledLoadError()) {
+			<p class="field-error">{{ scheduledLoadError() }}</p>
+		} @else if (!hasScheduledTasks()) {
+			<p class="scheduled-helper">Aun no hay tareas programadas.</p>
+		} @else {
+			<div class="scheduled-grid">
+				@for (task of scheduledTasks(); track trackScheduledTask($index, task)) {
+					<article class="scheduled-card">
+						<header class="scheduled-card-header">
+							<p class="scheduled-frequency">{{ frequencyLabel(task.frequency) }}</p>
+							<p class="scheduled-status" [class.inactive-status]="!task.isActive">
+								{{ task.isActive ? 'activa' : 'inactiva' }}
+							</p>
+						</header>
+
+						<p class="scheduled-jobname">{{ task.jobName || task.id }}</p>
+
+						<p class="scheduled-message">{{ task.message || 'No message content available.' }}</p>
+
+						<div class="scheduled-meta">
+							<p><strong>Proxima ejecucion:</strong> {{ formatDate(task.nextRunAt) }}</p>
+							<p><strong>Ultima ejecucion:</strong> {{ formatDate(task.lastRunAt) }}</p>
+							<p><strong>Creada:</strong> {{ formatDate(task.createdAt) }}</p>
+							<p><strong>Numero de ejecuciones:</strong> {{ task.runsCount }}</p>
+							<p><strong>Reenviado:</strong> {{ task.isForwarded ? 'Si' : 'No' }}</p>
+							@if (task.deactivatedAt) {
+								<p><strong>Desactivada en:</strong> {{ formatDate(task.deactivatedAt) }}</p>
+							}
+							@if (task.lastError) {
+								<p><strong>Ultimo error:</strong> {{ task.lastError }}</p>
+							}
+						</div>
+
+						<div class="scheduled-recipients">
+							@for (recipient of task.recipients; track recipient.phone) {
+								<span class="recipient-chip">{{ recipient.name }} - {{ recipient.phone }}</span>
+							}
+						</div>
+
+						<div class="scheduled-actions">
+							<button
+								type="button"
+								class="scheduled-action secondary"
+								(click)="toggleRepetition(task)"
+								[disabled]="isTaskActionRunning(task) || task.frequency <= 0"
+							>
+								{{ task.isActive ? 'Desactivar repeticion' : 'Activar repeticion' }}
+							</button>
+
+							<button
+								type="button"
+								class="scheduled-action danger"
+								(click)="deleteScheduledTask(task)"
+								[disabled]="isTaskActionRunning(task)"
+							>
+								Eliminar
+							</button>
+						</div>
+					</article>
+				}
+			</div>
+		}
+	</section>
+</section>
