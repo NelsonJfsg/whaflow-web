@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 interface QrPayload {
   qrImageSrc: string;
@@ -20,8 +21,8 @@ export interface LoggedSessionInfo {
 })
 export class SettingsService {
   private readonly httpClient = inject(HttpClient);
-  private readonly loginEndpoint = 'http://localhost:3001/device/login';
-  private readonly logoutEndpoint = 'http://localhost:3001/device/logout';
+  private readonly loginEndpoint = `${environment.apiCore}/device/login`;
+  private readonly logoutEndpoint = `${environment.apiCore}/device/logout`;
 
   getLoginQr(): Observable<unknown> {
     return this.httpClient.post(this.loginEndpoint, {});

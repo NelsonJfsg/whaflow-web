@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 export interface SentMessageItem {
   id: number;
@@ -28,7 +29,7 @@ interface SentMessagesResponse {
 export class DashboardService {
   private readonly httpClient = inject(HttpClient);
 
-  private readonly messagesEndpoint = 'http://localhost:3001/messages';
+  private readonly messagesEndpoint = `${environment.apiCore}/messages`;
   private readonly authToken = 'Basic bmVsc29uamZzZzpuZWxzb24xMjQh';
 
   private readonly headers = new HttpHeaders({

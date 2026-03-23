@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs';
+import { environment } from '../../../../../environments/environment';
 import { LoggedSessionInfo, SettingsService } from '../../services/settings.service';
 
 @Component({
@@ -69,7 +70,7 @@ export class SettingsPage implements OnInit {
           this.loggedSession.set(null);
           this.startAutoRefresh();
           this.qrImageSrc.set('');
-          this.qrError.set('No fue posible conectar con http://localhost:3001/device/login.');
+          this.qrError.set(`No fue posible conectar con ${environment.apiCore}/device/login.`);
           this.qrStatusText.set('Error al generar QR.');
         },
       });

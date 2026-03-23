@@ -2,6 +2,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
 
 interface PrivateRecipientPayload {
   name: string;
@@ -105,9 +106,9 @@ type ScheduledTaskAction = 'activate' | 'deactivate' | 'delete';
 export class TasksService {
   private readonly httpClient = inject(HttpClient);
 
-  private readonly endpoint = 'http://localhost:3001/tasks/send-message';
-  private readonly scheduledEndpoint = 'http://localhost:3001/tasks/scheduled';
-  private readonly groupsEndpoint = 'http://localhost:3001/groups/my';
+  private readonly endpoint = `${environment.apiCore}/tasks/send-message`;
+  private readonly scheduledEndpoint = `${environment.apiCore}/tasks/scheduled`;
+  private readonly groupsEndpoint = `${environment.apiCore}/groups/my`;
   private readonly authToken = 'Basic bmVsc29uamZzZzpuZWxzb24xMjQh';
 
   private readonly headers = new HttpHeaders({
