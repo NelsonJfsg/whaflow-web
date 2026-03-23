@@ -43,12 +43,9 @@ export class TasksPage implements OnInit {
   private readonly tasksService = inject(TasksService);
 
   protected readonly schedulerForm = this.formBuilder.nonNullable.group({
-    message: [
-      'Hola {name}. Solo un recordatorio: tu sesion programada inicia en 15 minutos. Nos vemos pronto.',
-      [Validators.required, Validators.minLength(10)],
-    ],
-    repeat: this.formBuilder.nonNullable.control<boolean>(true),
-    frequency: this.formBuilder.nonNullable.control<number>(15, [Validators.required, Validators.min(0)]),
+    message: ['', [Validators.required]],
+    repeat: this.formBuilder.nonNullable.control<boolean>(false),
+    frequency: this.formBuilder.nonNullable.control<number>(0, [Validators.required, Validators.min(0)]),
     frequencyOption: this.formBuilder.nonNullable.control<FrequencyOption>(15),
     useSendWindow: this.formBuilder.nonNullable.control<boolean>(false),
     sendWindowStart: this.formBuilder.nonNullable.control<string>('08:00', [Validators.pattern(TIME_24H_FORMAT)]),
@@ -57,12 +54,7 @@ export class TasksPage implements OnInit {
     groupId: this.formBuilder.nonNullable.control<string>(''),
     recipientName: ['', [Validators.minLength(2)]],
     recipientPhone: ['', [Validators.pattern(/^\+?[0-9\s()-]{7,20}$/)]],
-    recipients: this.formBuilder.nonNullable.array([
-      this.formBuilder.nonNullable.group({
-        name: ['Johnathan Doe', [Validators.required, Validators.minLength(2)]],
-        phone: ['5216623773648', [Validators.required, Validators.pattern(/^\+?[0-9\s()-]{7,20}$/)]],
-      }),
-    ]),
+    recipients: this.formBuilder.nonNullable.array([]),
   });
 
   protected readonly placeholders = ['{name}', '{date}', '{time}'];
@@ -103,10 +95,7 @@ export class TasksPage implements OnInit {
 
   protected readonly previewMessage = computed(() => {
     const draft = this.schedulerForm.controls.message.value.trim();
-    const baseMessage =
-      draft.length > 0
-        ? draft
-        : 'Hola {name}. Tu recordatorio automatico para {date} a las {time} esta listo.';
+    const baseMessage = draft.length > 0 ? draft : 'Escribe tu mensaje aqui.';
 
     return baseMessage
       .replaceAll('{name}', 'Johnathan')
@@ -150,6 +139,48 @@ export class TasksPage implements OnInit {
       sendWindowStart.touched || sendWindowEnd.touched || sendWindowStart.dirty || sendWindowEnd.dirty;
 
     return interacted && !this.isStartTimeBeforeEndTime(start, end);
+  }
+
+  protected get canAddRecipient(): boolean {
+    const name = this.schedulerForm.controls.recipientName.value.trim();
+    const phone = this.schedulerForm.controls.recipientPhone.value.trim();
+
+    if (!name || !phone) {
+      return false;
+    }
+
+    return !this.schedulerForm.controls.recipientName.invalid && !this.schedulerForm.controls.recipientPhone.invalid;
+  }
+
+  protected get canSubmitSchedule(): boolean {
+    if (this.isSending()) {
+      return false;
+    }
+
+    if (this.schedulerForm.controls.message.value.trim().length === 0) {
+      return false;
+    }
+
+    const shouldRepeat = this.schedulerForm.controls.repeat.value;
+    const frequency = this.schedulerForm.controls.frequency.value;
+    if (shouldRepeat && (!Number.isInteger(frequency) || frequency <= 0)) {
+      return false;
+    }
+
+    if (!this.isSendWindowValidForSubmit(shouldRepeat)) {
+      return false;
+    }
+
+    const recipientType = this.schedulerForm.controls.recipientType.value;
+    if (recipientType === 'group') {
+      return this.schedulerForm.controls.groupId.value.trim().length > 0;
+    }
+
+    if (this.recipientsArray.length === 0 || this.recipientsArray.invalid) {
+      return false;
+    }
+
+    return true;
   }
 
   ngOnInit(): void {
@@ -262,7 +293,8 @@ export class TasksPage implements OnInit {
     recipientName.markAsTouched();
     recipientPhone.markAsTouched();
 
-    if (recipientName.invalid || recipientPhone.invalid) {
+    const hasBothValues = recipientName.value.trim().length > 0 && recipientPhone.value.trim().length > 0;
+    if (!hasBothValues || recipientName.invalid || recipientPhone.invalid) {
       return;
     }
 
@@ -292,9 +324,9 @@ export class TasksPage implements OnInit {
   }
 
   protected saveSchedule(): void {
-    if (this.schedulerForm.invalid) {
-      this.schedulerForm.markAllAsTouched();
-      this.saveFeedback.set('Complete los campos obligatorios antes de guardar.');
+    if (this.schedulerForm.controls.message.value.trim().length === 0) {
+      this.schedulerForm.controls.message.markAsTouched();
+      this.saveFeedback.set('Escribe un mensaje antes de enviar.');
       return;
     }
 
@@ -571,6 +603,22 @@ export class TasksPage implements OnInit {
     }
 
     return { start, end };
+  }
+
+  private isSendWindowValidForSubmit(shouldRepeat: boolean): boolean {
+    const useSendWindow = this.schedulerForm.controls.useSendWindow.value;
+    if (!shouldRepeat || !useSendWindow) {
+      return true;
+    }
+
+    const start = this.schedulerForm.controls.sendWindowStart.value.trim();
+    const end = this.schedulerForm.controls.sendWindowEnd.value.trim();
+
+    if (!TIME_24H_FORMAT.test(start) || !TIME_24H_FORMAT.test(end)) {
+      return false;
+    }
+
+    return this.isStartTimeBeforeEndTime(start, end);
   }
 
   private isStartTimeBeforeEndTime(start: string, end: string): boolean {

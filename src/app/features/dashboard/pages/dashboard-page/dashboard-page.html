@@ -1,1 +1,77 @@
-<p>dashboard-page works!</p>,
+<section class="dashboard-page" aria-labelledby="dashboard-title">
+	<header class="dashboard-header">
+		<div>
+			<h1 id="dashboard-title">Historial de Mensajes</h1>
+			<p>Revisa todos los mensajes enviados por tu servicio en tiempo real.</p>
+		</div>
+		<button type="button" class="refresh-button" [disabled]="isLoadingMessages()" (click)="reload()">
+			@if (isLoadingMessages()) {
+				Actualizando...
+			} @else {
+				Recargar
+			}
+		</button>
+	</header>
+
+	<section class="stats-grid" aria-label="Resumen de mensajes">
+		<article class="stat-card">
+			<p class="stat-label">Total API</p>
+			<p class="stat-value">{{ totalMessagesFromApi() }}</p>
+		</article>
+		<article class="stat-card success-stat">
+			<p class="stat-label">Exitosos</p>
+			<p class="stat-value">{{ successCount() }}</p>
+		</article>
+		<article class="stat-card danger-stat">
+			<p class="stat-label">Con error</p>
+			<p class="stat-value">{{ failedCount() }}</p>
+		</article>
+	</section>
+
+	<section class="messages-card" aria-labelledby="messages-title">
+		<div class="messages-header">
+			<h2 id="messages-title">Mensajes Enviados</h2>
+		</div>
+
+		@if (isLoadingMessages()) {
+			<p class="helper-text">Cargando mensajes enviados...</p>
+		} @else if (loadError()) {
+			<p class="error-text">{{ loadError() }}</p>
+		} @else if (!hasMessages()) {
+			<p class="helper-text">No hay mensajes enviados para mostrar.</p>
+		} @else {
+			<div class="messages-grid">
+				@for (item of sentMessages(); track trackMessage($index, item)) {
+					<article class="message-item">
+						<header class="item-header">
+							<p class="recipient-name">{{ item.recipientName }}</p>
+							<p
+								class="status-badge"
+								[class.success-badge]="item.status.toUpperCase() === 'SUCCESS'"
+								[class.error-badge]="item.status.toUpperCase() !== 'SUCCESS'"
+							>
+								{{ item.status }}
+							</p>
+						</header>
+
+						<p class="recipient-phone">{{ item.recipientPhone }}</p>
+						<p class="message-text">{{ item.message || 'Sin contenido de mensaje.' }}</p>
+
+						<div class="meta-grid">
+							<p><strong>ID:</strong> {{ item.id }}</p>
+							<p><strong>Task ID:</strong> {{ item.scheduledTaskId }}</p>
+							<p><strong>Status Code:</strong> {{ item.statusCode }}</p>
+							<p><strong>Frecuencia:</strong> {{ item.frequencyInMinutes }} min</p>
+							<p><strong>Forwarded:</strong> {{ item.isForwarded ? 'Si' : 'No' }}</p>
+							<p><strong>Creado:</strong> {{ formatDate(item.createdAt) }}</p>
+						</div>
+
+						@if (item.error) {
+							<p class="error-inline"><strong>Error:</strong> {{ item.error }}</p>
+						}
+					</article>
+				}
+			</div>
+		}
+	</section>
+</section>

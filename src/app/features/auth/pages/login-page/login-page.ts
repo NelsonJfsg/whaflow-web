@@ -1,14 +1,19 @@
 import { Component, inject } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { NavbarService } from '../../../../shared/ui/layout/services/navbar.service';
+import { AuthService } from '../../services/auth.service';
+import { TokenService } from '../../../../core/services/token.service';
 
 @Component({
   selector: 'auth-login-page',
   imports: [
+    ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
@@ -19,12 +24,42 @@ import { NavbarService } from '../../../../shared/ui/layout/services/navbar.serv
 })
 export class LoginPage {
 
+  private formBuilder = inject(FormBuilder);
   private router = inject(Router);
+  private authService = inject(AuthService);
+  private tokenService = inject(TokenService);
   public navbarService = inject(NavbarService);
+  protected isSubmitting = false;
+  protected loginError = '';
+
+  protected readonly loginForm = this.formBuilder.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]],
+  });
 
   public login() : void {
-    localStorage.setItem('token', '1234567890abcdef');
-    this.router.navigate(['/home']);
+    if (this.loginForm.invalid) {
+      this.loginForm.markAllAsTouched();
+      this.loginError = 'Captura correo y contrasena validos.';
+      return;
+    }
+
+    this.isSubmitting = true;
+    this.loginError = '';
+
+    this.authService
+      .login(this.loginForm.getRawValue())
+      .pipe(finalize(() => (this.isSubmitting = false)))
+      .subscribe({
+        next: (response) => {
+          const token = this.authService.extractToken(response) || 'session-active';
+          this.tokenService.setToken(token);
+          this.router.navigate(['/tasks']);
+        },
+        error: () => {
+          this.loginError = 'No se pudo iniciar sesion. Verifica tus credenciales o el servicio de autenticacion.';
+        },
+      });
   }
 
   public onHandleTheme() {

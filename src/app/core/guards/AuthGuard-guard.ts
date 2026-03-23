@@ -1,13 +1,17 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { CanActivate, Router } from '@angular/router';
+import { TokenService } from '../services/token.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthGuard implements CanActivate {
-  constructor(private router: Router) {}
+  private router = inject(Router);
+  private tokenService = inject(TokenService);
 
   canActivate(): boolean {
-    const loggedIn = localStorage.getItem('token') !== null;
-    if (!loggedIn) {
+    // Check if token exists and is not expired
+    if (!this.tokenService.isTokenValid()) {
+      // Clear expired token
+      this.tokenService.clearToken();
       this.router.navigate(['/auth']);
       return false;
     }

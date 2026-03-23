@@ -1,14 +1,16 @@
-import { Injectable } from "@angular/core";
-import { CanActivate, Router } from "@angular/router";
+import { Injectable, inject } from '@angular/core';
+import { CanActivate, Router } from '@angular/router';
+import { TokenService } from '../services/token.service';
 
 @Injectable({ providedIn: 'root' })
 export class NoAuthGuard implements CanActivate {
-  constructor(private router: Router) {}
+  private router = inject(Router);
+  private tokenService = inject(TokenService);
 
   canActivate(): boolean {
-    const loggedIn = localStorage.getItem('token') !== null;
-    if (loggedIn) {
-      this.router.navigate(['/home']);
+    // Only allow access if NOT authenticated
+    if (this.tokenService.isTokenValid()) {
+      this.router.navigate(['/tasks']);
       return false;
     }
     return true;

@@ -1,29 +1,62 @@
 <section class="login-container">
-  <section class="login-card-container">
+  <div class="ambient-shape ambient-shape-left" aria-hidden="true"></div>
+  <div class="ambient-shape ambient-shape-right" aria-hidden="true"></div>
 
-    <header class="login-card-header">
-      <p>Login</p>
-      <button (click)="onHandleTheme()" matIconButton>
+  <section class="login-shell" aria-label="Acceso al sistema WhaFlow">
+    <header class="brand-header">
+      <div class="brand-mark" aria-hidden="true">
+        <mat-icon>send_time_extension</mat-icon>
+      </div>
+
+      <div class="brand-copy">
+        <h1>WhaFlow</h1>
+        <p>Sistema de envio automatico de mensajes</p>
+        <small>Powered by Nelister</small>
+      </div>
+
+      <button class="theme-button" (click)="onHandleTheme()" matIconButton aria-label="Cambiar tema">
         <mat-icon>{{navbarService.getTheme ? 'light_mode' : 'dark_mode'}}</mat-icon>
       </button>
     </header>
 
-    <div class="login-card-body">
-      <mat-form-field appearance="outline">
-        <mat-label>Email</mat-label>
-        <input matInput type="email" />
-        <mat-icon matSuffix>email</mat-icon>
-      </mat-form-field>
+    <article class="login-card-container">
+      <header class="login-card-header">
+        <h2>Iniciar sesion</h2>
+        <p>Accede para gestionar tus flujos automatizados.</p>
+      </header>
 
-      <mat-form-field appearance="outline">
-        <mat-label>Password</mat-label>
-        <input matInput type="email" />
-        <mat-icon matSuffix>password</mat-icon>
-      </mat-form-field>
+      <form class="login-card-body" [formGroup]="loginForm" (ngSubmit)="login()" novalidate>
+        <mat-form-field appearance="outline">
+          <mat-label>Correo electronico</mat-label>
+          <input matInput type="email" formControlName="email" placeholder="nombre@empresa.com" />
+          <mat-icon matSuffix>mail</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Contrasena</mat-label>
+          <input matInput type="password" formControlName="password" placeholder="********" />
+          <mat-icon matSuffix>lock</mat-icon>
+        </mat-form-field>
+
+        @if (loginError) {
+          <p class="login-error">{{ loginError }}</p>
+        }
+
+        <footer class="login-card-footer">
+          <button type="submit" matButton="filled" [disabled]="isSubmitting">
+            @if (isSubmitting) {
+              Entrando...
+            } @else {
+              Entrar
+            }
+          </button>
+        </footer>
+      </form>
+    </article>
+
+    <div class="status-strip" aria-live="polite">
+      <span class="status-dot" aria-hidden="true"></span>
+      <p>Estado del sistema: todos los servicios operando correctamente</p>
     </div>
-
-    <footer>
-      <button (click)="login()" matButton="filled">Login</button>
-    </footer>
   </section>
 </section>

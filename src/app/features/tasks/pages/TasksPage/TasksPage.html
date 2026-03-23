@@ -28,11 +28,11 @@
 				class="message-input"
 				rows="7"
 				formControlName="message"
-				placeholder="Escribe aqui tu mensaje automatico... Usa {name} para personalizar."
+				placeholder="Escribe tu mensaje"
 			></textarea>
 
 			@if (schedulerForm.controls.message.invalid && schedulerForm.controls.message.touched) {
-				<p class="field-error">Escribe un mensaje completo (al menos 10 caracteres).</p>
+				<p class="field-error">Escribe un mensaje antes de enviar.</p>
 			}
 
 			<div class="message-preview" aria-live="polite">
@@ -266,7 +266,7 @@
 							placeholder="Numero de telefono"
 						/>
 
-						<button type="button" class="add-recipient" (click)="addRecipient()">+ Agregar Destinatario</button>
+						<button type="button" class="add-recipient" [disabled]="!canAddRecipient" (click)="addRecipient()">+ Agregar Destinatario</button>
 
 						@if (schedulerForm.controls.recipientName.invalid && schedulerForm.controls.recipientName.touched) {
 							<p class="field-error">El nombre debe contener al menos 2 caracteres.</p>
@@ -284,7 +284,7 @@
       @if (saveFeedback()) {
 				<p class="save-feedback" aria-live="polite">{{ saveFeedback() }}</p>
 			}
-			<button type="submit" class="save-button" [disabled]="isSending()">
+			<button type="submit" class="save-button" [disabled]="!canSubmitSchedule">
 				@if (isSending()) {
 					Enviando...
 				} @else {
