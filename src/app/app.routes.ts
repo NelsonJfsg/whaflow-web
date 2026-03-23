@@ -16,17 +16,18 @@ export const routes: Routes = [
     canActivate : [AuthGuard],
     children : [
       {
+        path : 'dashboard',
+        loadChildren : () => import('./features/dashboard/dashboard.routes')
+        .then(r => r.DashboardRoutes)
+      },
+      {
         path : 'tasks',
         component : TasksPage,
         data : {
           title : 'Tareas programadas'
         }
       },
-      {
-        path : 'dashboard',
-        loadChildren : () => import('./features/dashboard/dashboard.routes')
-        .then(r => r.DashboardRoutes)
-      },
+      
       // {
       //   path : 'security',
       //   loadChildren : () => import('./features/security/security.routes')

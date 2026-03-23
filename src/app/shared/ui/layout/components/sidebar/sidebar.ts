@@ -21,15 +21,15 @@ export class Sidebar {
   public navItems : NavItem[] = [
     {
       id : 1,
-      title : 'Tareas programadas',
-      iconName : 'task',
-      routeLink : 'tasks'
-    },
-    {
-      id : 2,
       title : 'Dashboard',
       iconName : 'dashboard',
       routeLink : 'dashboard'
+    },
+    {
+      id : 2,
+      title : 'Tareas programadas',
+      iconName : 'task',
+      routeLink : 'tasks'
     },
     // {
     //   id : 2,
@@ -52,7 +52,7 @@ export class Sidebar {
       iconName : 'logout',
       routeLink : 'auth',
       action : () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
       }
     },
     {

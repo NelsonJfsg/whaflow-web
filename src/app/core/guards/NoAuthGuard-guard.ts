@@ -10,7 +10,7 @@ export class NoAuthGuard implements CanActivate {
   canActivate(): boolean {
     // Only allow access if NOT authenticated
     if (this.tokenService.isTokenValid()) {
-      this.router.navigate(['/tasks']);
+      this.router.navigate(['/dashboard']);
       return false;
     }
     return true;

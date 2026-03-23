@@ -54,7 +54,7 @@ export class LoginPage {
         next: (response) => {
           const token = this.authService.extractToken(response) || 'session-active';
           this.tokenService.setToken(token);
-          this.router.navigate(['/tasks']);
+          this.router.navigate(['/dashboard']);
         },
         error: () => {
           this.loginError = 'No se pudo iniciar sesion. Verifica tus credenciales o el servicio de autenticacion.';
