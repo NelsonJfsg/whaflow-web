@@ -15,13 +15,15 @@
 						Recargar QR
 					}
 				</button>
-				<button type="button" class="logout-button" [disabled]="isLoggingOut() || isLoadingQr()" (click)="logoutConnection()">
-					@if (isLoggingOut()) {
-						Cerrando...
-					} @else {
-						Cerrar Sesion WhatsApp
-					}
-				</button>
+				@if (loggedSession()) {
+					<button type="button" class="logout-button" [disabled]="isLoggingOut() || isLoadingQr()" (click)="logoutConnection()">
+						@if (isLoggingOut()) {
+							Cerrando...
+						} @else {
+							Cerrar Sesion WhatsApp
+						}
+					</button>
+				}
 			</div>
 		</div>
 
