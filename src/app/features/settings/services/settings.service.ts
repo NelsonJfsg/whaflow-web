@@ -32,6 +32,22 @@ export class SettingsService {
     return this.httpClient.post(this.logoutEndpoint, {});
   }
 
+  getDeviceStatus(): Observable<boolean> {
+    return new Observable((subscriber) => {
+      this.getLoginQr().subscribe({
+        next: (response) => {
+          const sessionInfo = this.toLoggedSessionInfo(response);
+          subscriber.next(sessionInfo !== null && sessionInfo.isReady && sessionInfo.state === 'logged_in');
+          subscriber.complete();
+        },
+        error: () => {
+          subscriber.next(false);
+          subscriber.complete();
+        },
+      });
+    });
+  }
+
   toLoggedSessionInfo(response: unknown): LoggedSessionInfo | null {
     const root = this.asRecord(response);
     if (!root) {

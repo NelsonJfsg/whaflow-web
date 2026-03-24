@@ -2,9 +2,12 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { MxPhoneDisplayPipe } from '../../pipes/mx-phone-display.pipe';
 import { ScheduledTaskItem, TasksService, WhatsAppGroup } from '../../services/tasks.service';
+import { NgClass } from '@angular/common';
+import { SettingsService } from '../../../settings/services/settings.service';
 
 type FrequencyOption = 15 | 30 | 60 | 'custom';
 type RecipientType = 'private' | 'group';
@@ -35,7 +38,7 @@ interface ScheduledTaskCard {
 
 @Component({
   selector: 'tasks-page',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule],
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, NgClass],
   templateUrl: './TasksPage.html',
   styleUrl: './TasksPage.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +46,8 @@ interface ScheduledTaskCard {
 export class TasksPage implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly tasksService = inject(TasksService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly router = inject(Router);
   private readonly mxPhoneDisplayPipe = new MxPhoneDisplayPipe();
 
   protected readonly schedulerForm = this.formBuilder.nonNullable.group({
@@ -85,6 +90,8 @@ export class TasksPage implements OnInit {
   protected readonly isGroupModalOpen = signal<boolean>(false);
   protected readonly actionTaskId = signal<string>('');
   private readonly lastRepeatFrequency = signal<number>(15);
+  protected readonly isDeviceLinked = signal<boolean | null>(null);
+  protected readonly showDeviceWarningModal = signal<boolean>(false);
 
   protected get recipientsArray(): FormArray {
     return this.schedulerForm.controls.recipients;
@@ -176,37 +183,64 @@ export class TasksPage implements OnInit {
   }
 
   protected get canSubmitSchedule(): boolean {
+    // Validar que dispositivo esté ligado
+    if (!this.isDeviceLinked()) {
+      return false;
+    }
+
+    // Si está enviando, desabilitar
     if (this.isSending()) {
       return false;
     }
 
-    if (this.schedulerForm.controls.message.value.trim().length === 0) {
+    // Mensaje es requerido y no puede estar vacío
+    const message = this.schedulerForm.controls.message.value.trim();
+    if (message.length === 0) {
       return false;
     }
 
+    // Validar frecuencia si está activada la repetición
     const shouldRepeat = this.schedulerForm.controls.repeat.value;
     const frequency = this.schedulerForm.controls.frequency.value;
     if (shouldRepeat && (!Number.isInteger(frequency) || frequency <= 0)) {
       return false;
     }
 
+    // Validar ventana de envío si está activada
     if (!this.isSendWindowValidForSubmit(shouldRepeat)) {
       return false;
     }
 
+    // Validar destinatarios basado en el tipo
     const recipientType = this.schedulerForm.controls.recipientType.value;
+    
     if (recipientType === 'group') {
-      return this.schedulerForm.controls.groupId.value.trim().length > 0;
-    }
-
-    if (this.recipientsArray.length === 0 || this.recipientsArray.invalid) {
-      return false;
+      // Si es grupo, debe haber un grupo seleccionado
+      const groupId = this.schedulerForm.controls.groupId.value.trim();
+      if (!groupId || groupId.length === 0) {
+        return false;
+      }
+    } else {
+      // Si es privado, debe haber al menos un destinatario
+      const recipients = this.recipientsArray;
+      if (!recipients || recipients.length === 0) {
+        return false;
+      }
+      
+      // Validar que todos los destinatarios en el array sean válidos
+      for (let i = 0; i < recipients.length; i++) {
+        const recipient = recipients.at(i);
+        if (!recipient || recipient.invalid) {
+          return false;
+        }
+      }
     }
 
     return true;
   }
 
   ngOnInit(): void {
+    this.checkDeviceStatus();
     this.loadScheduledTasks();
   }
 
@@ -268,6 +302,11 @@ export class TasksPage implements OnInit {
 
     this.schedulerForm.controls.frequency.setValue(parsed);
     this.lastRepeatFrequency.set(parsed);
+  }
+
+  protected sanitizeRecipientPhoneInput(rawValue: string): void {
+    const digitsOnly = rawValue.replace(/\D/g, '').slice(0, 10);
+    this.schedulerForm.controls.recipientPhone.setValue(digitsOnly);
   }
 
   protected selectRecipientType(value: RecipientType): void {
@@ -690,5 +729,35 @@ export class TasksPage implements OnInit {
     }
 
     return `${ladaDigits}${phoneDigits}`;
+  }
+
+  private checkDeviceStatus(): void {
+    this.isDeviceLinked.set(null);
+
+    this.settingsService
+      .getDeviceStatus()
+      .pipe(finalize(() => {}))
+      .subscribe({
+        next: (isLinked) => {
+          this.isDeviceLinked.set(isLinked);
+          if (!isLinked) {
+            this.showDeviceWarningModal.set(true);
+          }
+        },
+        error: () => {
+          this.isDeviceLinked.set(false);
+          this.showDeviceWarningModal.set(true);
+        },
+      });
+  }
+
+  protected navigateToSettings(): void {
+    this.showDeviceWarningModal.set(false);
+    this.router.navigate(['/settings']);
+  }
+
+  protected retryDeviceCheck(): void {
+    this.showDeviceWarningModal.set(false);
+    this.checkDeviceStatus();
   }
 }

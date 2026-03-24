@@ -114,8 +114,13 @@
 
 .error-text {
 	margin: 0;
-	color: #b91c1c;
+	color: var(--error-text);
+	background: color-mix(in srgb, var(--error-bg) 84%, transparent 16%);
+	border: 1px solid color-mix(in srgb, var(--error-border) 72%, transparent 28%);
+	border-radius: 0.6rem;
+	padding: 0.45rem 0.6rem;
 	font-size: 0.9rem;
+	font-weight: 600;
 }
 
 .messages-grid {
@@ -168,8 +173,9 @@
 }
 
 .error-badge {
-	background: color-mix(in srgb, #ef4444 20%, #ffffff 80%);
-	color: #7f1d1d;
+	background: color-mix(in srgb, var(--error-bg) 84%, transparent 16%);
+	border: 1px solid color-mix(in srgb, var(--error-border) 72%, transparent 28%);
+	color: var(--error-text);
 }
 
 .message-text {
@@ -195,7 +201,8 @@
 
 .error-inline {
 	margin: 0;
-	color: #b91c1c;
+	color: var(--error-text);
+	font-weight: 600;
 	font-size: 0.8rem;
 }
 

@@ -68,6 +68,11 @@ html, body {
   --border-color: #cbd5e1;
   --shadow-color: rgba(0,0,0,0.1);
 
+  /* Estados de error */
+  --error-text: #991b1b;
+  --error-bg: #fef2f2;
+  --error-border: #fca5a5;
+
 }
 
 [data-theme='dark'] {
@@ -100,6 +105,11 @@ html, body {
   /* Bordes y sombras */
   --border-color: #334155;
   --shadow-color: rgba(0,0,0,0.5);
+
+  /* Estados de error */
+  --error-text: #fecaca;
+  --error-bg: #3f1418;
+  --error-border: #f87171;
   
 }
 

@@ -1,3 +1,29 @@
+@if (showDeviceWarningModal()) {
+	<div class="device-warning-backdrop" (click)="navigateToSettings()" aria-hidden="true"></div>
+	<section
+		class="device-warning-modal"
+		role="alertdialog"
+		aria-modal="true"
+		aria-labelledby="device-warning-title"
+	>
+		<div class="device-warning-header">
+			<h2 id="device-warning-title">Dispositivo no vinculado</h2>
+		</div>
+		<div class="device-warning-content">
+			<p>Para utilizar el editor de programación de tareas, necesitas vincular un dispositivo WhatsApp en la sección de configuración.</p>
+			<p>Por favor, ve a la sección de Settings y liga tu dispositivo para continuar.</p>
+		</div>
+		<div class="device-warning-actions">
+			<button type="button" class="btn-primary" (click)="navigateToSettings()">
+				Ir a Settings
+			</button>
+			<button type="button" class="btn-secondary" (click)="retryDeviceCheck()">
+				Reintentar
+			</button>
+		</div>
+	</section>
+}
+
 <section class="scheduling-editor" aria-labelledby="scheduling-title">
 	<header class="editor-header">
 		<h1 id="scheduling-title">Editor de Programacion</h1>
@@ -271,9 +297,12 @@
 								id="recipient-phone"
 								type="tel"
 								inputmode="numeric"
+								pattern="[0-9]*"
 								maxlength="10"
 								formControlName="recipientPhone"
+								(input)="sanitizeRecipientPhoneInput(recipientPhoneField.value)"
 								placeholder="Numero de telefono"
+								#recipientPhoneField
 							/>
 						</div>
 
@@ -281,7 +310,7 @@
 							<p class="scheduled-helper">Vista previa: {{ formatRecipientPhone('521' + schedulerForm.controls.recipientPhone.value) }}</p>
 						}
 
-						<button type="button" class="add-recipient" [disabled]="!canAddRecipient" (click)="addRecipient()">+ Agregar Destinatario</button>
+						<button type="button" class="add-recipient" [class.is-ready]="canAddRecipient" [disabled]="!canAddRecipient" (click)="addRecipient()">+ Agregar Destinatario</button>
 
 						@if (schedulerForm.controls.recipientName.invalid && schedulerForm.controls.recipientName.touched) {
 							<p class="field-error">El nombre debe contener al menos 2 caracteres.</p>
@@ -299,7 +328,7 @@
       @if (saveFeedback()) {
 				<p class="save-feedback" aria-live="polite">{{ saveFeedback() }}</p>
 			}
-			<button type="submit" class="save-button" [disabled]="!canSubmitSchedule">
+			<button type="submit" class="save-button" [ngClass]="{'disable' : !canSubmitSchedule}" [disabled]="!canSubmitSchedule">
 				@if (isSending()) {
 					Enviando...
 				} @else {
