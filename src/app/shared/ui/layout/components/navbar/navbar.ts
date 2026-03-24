@@ -2,6 +2,7 @@ import { Component, inject, Input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { NavbarService } from '../../services/navbar.service';
+import { TokenService } from '../../../../../core/services/token.service';
 
 @Component({
   selector: 'ui-navbar',
@@ -17,6 +18,11 @@ export class Navbar {
   @Input() collapsedSignal: any;
 
   public navbarService = inject(NavbarService);
+  public tokenService = inject(TokenService);
+
+  get userName(): string {
+    return this.tokenService.getUserName() || 'Usuario';
+  }
 
   public onHandleCollapse() {
     this.collapsedSignal.update((v: any) => !v);

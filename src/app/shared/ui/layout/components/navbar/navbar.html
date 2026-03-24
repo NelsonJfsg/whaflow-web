@@ -9,17 +9,17 @@
 
     <div class="right-container">
 
-      <button matIconButton>
+      <!-- <button matIconButton>
         <mat-icon>search</mat-icon>
-      </button>
+      </button> -->
 
       <button (click)="onHandleTheme()" matIconButton>
         <mat-icon>{{navbarService.getTheme ? 'light_mode' : 'dark_mode'}}</mat-icon>
       </button>
 
-      <button matIconButton>
+      <!-- <button matIconButton>
         <mat-icon>notifications</mat-icon>
-      </button>
+      </button> -->
 
       <p>|</p>
 
@@ -27,7 +27,7 @@
         <mat-icon>person</mat-icon>
       </button>
 
-      <p>UserName</p>
+      <p>{{ userName }}</p>
       
     </div>
 </section>

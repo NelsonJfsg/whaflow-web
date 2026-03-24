@@ -99,6 +99,22 @@
   color: var(--text-color);
 }
 
+@media (max-width: 480px) {
+  .ambient-shape-left {
+    width: 18rem;
+    height: 18rem;
+    left: -6rem;
+    top: -4rem;
+  }
+
+  .ambient-shape-right {
+    width: 14rem;
+    height: 14rem;
+    right: -5rem;
+    bottom: -4rem;
+  }
+}
+
 .login-card-container {
   border-radius: 1.2rem;
   border: 1px solid color-mix(in srgb, var(--border-color) 58%, #ffffff 42%);
@@ -177,6 +193,20 @@
   color: var(--text-secondary);
 }
 
+@media (max-width: 900px) {
+  .login-shell {
+    width: min(100%, 28rem);
+  }
+
+  .brand-copy h1 {
+    font-size: 1.5rem;
+  }
+
+  .brand-copy p {
+    font-size: 0.85rem;
+  }
+}
+
 @media (max-width: 640px) {
   .login-container {
     padding: 0.85rem;
@@ -194,5 +224,55 @@
 
   .brand-copy h1 {
     font-size: 1.45rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 0.6rem;
+  }
+
+  .login-shell {
+    gap: 0.8rem;
+  }
+
+  .brand-header {
+    grid-template-columns: auto 1fr;
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .brand-mark {
+    width: 2.2rem;
+    height: 2.2rem;
+  }
+
+  .brand-copy h1 {
+    font-size: 1.4rem;
+  }
+
+  .brand-copy p {
+    font-size: 0.8rem;
+  }
+
+  .login-card-container {
+    padding: 0.8rem;
+  }
+
+  .login-card-header h2 {
+    font-size: 1rem;
+  }
+
+  .login-card-header p {
+    font-size: 0.8rem;
+  }
+
+  .login-card-body mat-form-field {
+    font-size: 0.9rem;
+  }
+
+  .login-card-footer button {
+    min-height: 2.4rem;
+    font-size: 0.9rem;
   }
 }
