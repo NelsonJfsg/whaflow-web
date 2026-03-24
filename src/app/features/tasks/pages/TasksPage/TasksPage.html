@@ -231,7 +231,7 @@
 								<div class="recipient-avatar" aria-hidden="true">{{ recipientInitials(recipientControl.value.name ?? '') }}</div>
 								<div class="recipient-data">
 									<p class="recipient-name">{{ recipientControl.value.name }}</p>
-									<p class="recipient-phone">{{ recipientControl.value.phone }}</p>
+									<p class="recipient-phone">{{ formatRecipientPhone(recipientControl.value.phone ?? '') }}</p>
 								</div>
 								<button
 									type="button"
@@ -258,13 +258,28 @@
 							placeholder="Nombre del destinatario"
 						/>
 
-						<label class="sr-only" for="recipient-phone">Telefono del destinatario</label>
-						<input
-							id="recipient-phone"
-							type="tel"
-							formControlName="recipientPhone"
-							placeholder="Numero de telefono"
-						/>
+						<div class="recipient-phone-row">
+							<label class="sr-only" for="recipient-lada">Lada del destinatario</label>
+							<select id="recipient-lada" formControlName="recipientLada" class="recipient-lada-select" aria-label="Lada">
+								@for (lada of ladas; track lada.value) {
+									<option [value]="lada.value">{{ lada.value }}</option>
+								}
+							</select>
+
+							<label class="sr-only" for="recipient-phone">Telefono del destinatario</label>
+							<input
+								id="recipient-phone"
+								type="tel"
+								inputmode="numeric"
+								maxlength="10"
+								formControlName="recipientPhone"
+								placeholder="Numero de telefono"
+							/>
+						</div>
+
+						@if (schedulerForm.controls.recipientPhone.value.trim()) {
+							<p class="scheduled-helper">Vista previa: {{ formatRecipientPhone('521' + schedulerForm.controls.recipientPhone.value) }}</p>
+						}
 
 						<button type="button" class="add-recipient" [disabled]="!canAddRecipient" (click)="addRecipient()">+ Agregar Destinatario</button>
 
@@ -273,7 +288,7 @@
 						}
 
 						@if (schedulerForm.controls.recipientPhone.invalid && schedulerForm.controls.recipientPhone.touched) {
-							<p class="field-error">El formato del telefono no es valido.</p>
+							<p class="field-error">El telefono debe contener 10 digitos.</p>
 						}
 					</div>
 				}
@@ -317,8 +332,23 @@
 			} @else if (!hasGroups()) {
 				<p class="scheduled-helper">No hay grupos para mostrar.</p>
 			} @else {
-				<div class="group-list" role="listbox" aria-label="Lista de grupos disponibles">
-					@for (group of availableGroups(); track trackGroup($index, group)) {
+				<label class="sr-only" for="group-search-input">Buscar grupo por nombre</label>
+				<input
+					id="group-search-input"
+					type="search"
+					class="group-search-input"
+					placeholder="Buscar grupo por nombre"
+					inputmode="search"
+					[value]="groupSearchTerm()"
+					(input)="updateGroupSearchTerm(groupSearch.value)"
+					#groupSearch
+				/>
+
+				@if (!hasFilteredGroups()) {
+					<p class="scheduled-helper">No se encontraron grupos con ese nombre.</p>
+				} @else {
+					<div class="group-list" role="listbox" aria-label="Lista de grupos disponibles">
+						@for (group of filteredGroups(); track trackGroup($index, group)) {
 						<button
 							type="button"
 							class="group-item"
@@ -329,8 +359,9 @@
 							<span class="group-item-id">{{ group.JID }}</span>
 							<span class="group-item-meta">{{ group.ParticipantCount }} participantes</span>
 						</button>
-					}
-				</div>
+						}
+					</div>
+				}
 			}
 		</section>
 	}

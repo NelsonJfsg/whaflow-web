@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 
-const TOKEN_KEY = 'accessToken';
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const USER_NAME_KEY = 'userName';
 
 /**
  * Service to manage JWT token operations.
@@ -12,21 +14,43 @@ export class TokenService {
    * Get the stored access token from localStorage.
    */
   getToken(): string | null {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(ACCESS_TOKEN_KEY);
   }
 
   /**
-   * Store the access token in localStorage.
+   * Store the access token, refresh token, and user name in localStorage.
    */
-  setToken(token: string): void {
-    localStorage.setItem(TOKEN_KEY, token);
+  setToken(accessToken: string, refreshToken?: string, userName?: string): void {
+    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    }
+    if (userName) {
+      localStorage.setItem(USER_NAME_KEY, userName);
+    }
   }
 
   /**
-   * Remove the access token from localStorage (logout).
+   * Get the stored refresh token from localStorage.
+   */
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  }
+
+  /**
+   * Get the stored user name from localStorage.
+   */
+  getUserName(): string | null {
+    return localStorage.getItem(USER_NAME_KEY);
+  }
+
+  /**
+   * Remove all authentication data from localStorage (logout).
    */
   clearToken(): void {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(USER_NAME_KEY);
   }
 
   /**

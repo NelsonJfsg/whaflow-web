@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -29,8 +29,8 @@ export class LoginPage {
   private authService = inject(AuthService);
   private tokenService = inject(TokenService);
   public navbarService = inject(NavbarService);
-  protected isSubmitting = false;
-  protected loginError = '';
+  protected isSubmitting = signal(false);
+  protected loginError = signal('');
 
   protected readonly loginForm = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -40,24 +40,27 @@ export class LoginPage {
   public login() : void {
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
-      this.loginError = 'Captura correo y contrasena validos.';
+      this.loginError.set('Captura correo y contrasena validos.');
       return;
     }
 
-    this.isSubmitting = true;
-    this.loginError = '';
+    this.isSubmitting.set(true);
+    this.loginError.set('');
 
     this.authService
       .login(this.loginForm.getRawValue())
-      .pipe(finalize(() => (this.isSubmitting = false)))
+      .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
-        next: (response) => {
-          const token = this.authService.extractToken(response) || 'session-active';
-          this.tokenService.setToken(token);
+        next: (response : any) => {
+          const accessToken = this.authService.extractToken(response) || 'session-active';
+          const refreshToken = this.authService.extractRefreshToken(response);
+          const userName = this.authService.extractUserName(response);
+          
+          this.tokenService.setToken(accessToken, refreshToken ?? undefined, userName ?? undefined);
           this.router.navigate(['/dashboard']);
         },
         error: () => {
-          this.loginError = 'No se pudo iniciar sesion. Verifica tus credenciales o el servicio de autenticacion.';
+          this.loginError.set('No se pudo iniciar sesion. Verifica tus credenciales o el servicio de autenticacion.');
         },
       });
   }

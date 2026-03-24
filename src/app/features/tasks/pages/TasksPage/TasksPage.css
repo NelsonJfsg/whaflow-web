@@ -91,6 +91,7 @@
 .group-item:focus-visible,
 .message-input:focus-visible,
 .add-recipient-form input:focus-visible,
+.recipient-lada-select:focus-visible,
 .time-field input:focus-visible {
 	outline: 3px solid color-mix(in srgb, var(--accent-color) 40%, #ffffff 60%);
 	outline-offset: 1px;
@@ -384,6 +385,23 @@
 	font: inherit;
 }
 
+.recipient-phone-row {
+	display: grid;
+	grid-template-columns: 7rem minmax(0, 1fr);
+	gap: 0.55rem;
+}
+
+.recipient-lada-select {
+	width: 100%;
+	box-sizing: border-box;
+	border-radius: 0.65rem;
+	border: 1px solid color-mix(in srgb, var(--border-color) 70%, #ffffff 30%);
+	background: color-mix(in srgb, var(--card-bg) 84%, #ffffff 16%);
+	color: var(--text-color);
+	padding: 0.58rem 0.65rem;
+	font: inherit;
+}
+
 .add-recipient {
 	border: 1px solid color-mix(in srgb, var(--border-color) 80%, #ffffff 20%);
 	border-radius: 0.65rem;
@@ -528,6 +546,18 @@
 .group-modal-header h3 {
 	margin: 0;
 	font-size: 1.1rem;
+}
+
+.group-search-input {
+	width: 100%;
+	box-sizing: border-box;
+	margin: 0 0 0.7rem;
+	border-radius: 0.65rem;
+	border: 1px solid color-mix(in srgb, var(--border-color) 70%, #ffffff 30%);
+	background: color-mix(in srgb, var(--card-bg) 84%, #ffffff 16%);
+	color: var(--text-color);
+	padding: 0.58rem 0.7rem;
+	font: inherit;
 }
 
 .group-list {

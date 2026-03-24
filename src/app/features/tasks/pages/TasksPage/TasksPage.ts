@@ -3,11 +3,13 @@ import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { finalize } from 'rxjs';
+import { MxPhoneDisplayPipe } from '../../pipes/mx-phone-display.pipe';
 import { ScheduledTaskItem, TasksService, WhatsAppGroup } from '../../services/tasks.service';
 
 type FrequencyOption = 15 | 30 | 60 | 'custom';
 type RecipientType = 'private' | 'group';
 const TIME_24H_FORMAT = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const DEFAULT_LADA = '+52';
 
 interface Recipient {
   name: string;
@@ -41,6 +43,7 @@ interface ScheduledTaskCard {
 export class TasksPage implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly tasksService = inject(TasksService);
+  private readonly mxPhoneDisplayPipe = new MxPhoneDisplayPipe();
 
   protected readonly schedulerForm = this.formBuilder.nonNullable.group({
     message: ['', [Validators.required]],
@@ -52,8 +55,9 @@ export class TasksPage implements OnInit {
     sendWindowEnd: this.formBuilder.nonNullable.control<string>('18:00', [Validators.pattern(TIME_24H_FORMAT)]),
     recipientType: this.formBuilder.nonNullable.control<RecipientType>('private'),
     groupId: this.formBuilder.nonNullable.control<string>(''),
+    recipientLada: this.formBuilder.nonNullable.control<string>(DEFAULT_LADA, [Validators.required]),
     recipientName: ['', [Validators.minLength(2)]],
-    recipientPhone: ['', [Validators.pattern(/^\+?[0-9\s()-]{7,20}$/)]],
+    recipientPhone: ['', [Validators.pattern(/^\d{10}$/)]],
     recipients: this.formBuilder.nonNullable.array([]),
   });
 
@@ -64,6 +68,9 @@ export class TasksPage implements OnInit {
     { label: 'Cada 60 min', value: 60 },
     { label: 'Personalizado', value: 'custom' },
   ];
+  protected readonly ladas: Array<{ label: string; value: string }> = [
+    { label: 'Mexico (+52)', value: '+52' },
+  ];
 
   protected readonly saveFeedback = signal<string>('');
   protected readonly isSending = signal<boolean>(false);
@@ -71,6 +78,7 @@ export class TasksPage implements OnInit {
   protected readonly scheduledLoadError = signal<string>('');
   protected readonly scheduledTasks = signal<ScheduledTaskCard[]>([]);
   protected readonly availableGroups = signal<WhatsAppGroup[]>([]);
+  protected readonly groupSearchTerm = signal<string>('');
   protected readonly isLoadingGroups = signal<boolean>(false);
   private readonly hasLoadedGroups = signal<boolean>(false);
   protected readonly groupsLoadError = signal<string>('');
@@ -84,6 +92,16 @@ export class TasksPage implements OnInit {
 
   protected readonly hasScheduledTasks = computed(() => this.scheduledTasks().length > 0);
   protected readonly hasGroups = computed(() => this.availableGroups().length > 0);
+  protected readonly filteredGroups = computed(() => {
+    const searchTerm = this.groupSearchTerm().trim().toLocaleLowerCase();
+    if (!searchTerm) {
+      return this.availableGroups();
+    }
+
+    return this.availableGroups().filter((group) => group.Name.toLocaleLowerCase().includes(searchTerm));
+  });
+  protected readonly hasFilteredGroups = computed(() => this.filteredGroups().length > 0);
+
   protected selectedGroup(): WhatsAppGroup | null {
     const groupId = this.schedulerForm.controls.groupId.value;
     if (!groupId) {
@@ -142,14 +160,19 @@ export class TasksPage implements OnInit {
   }
 
   protected get canAddRecipient(): boolean {
+    const lada = this.schedulerForm.controls.recipientLada.value.trim();
     const name = this.schedulerForm.controls.recipientName.value.trim();
     const phone = this.schedulerForm.controls.recipientPhone.value.trim();
 
-    if (!name || !phone) {
+    if (!lada || !name || !phone) {
       return false;
     }
 
-    return !this.schedulerForm.controls.recipientName.invalid && !this.schedulerForm.controls.recipientPhone.invalid;
+    return (
+      !this.schedulerForm.controls.recipientName.invalid &&
+      !this.schedulerForm.controls.recipientPhone.invalid &&
+      !this.schedulerForm.controls.recipientLada.invalid
+    );
   }
 
   protected get canSubmitSchedule(): boolean {
@@ -266,11 +289,17 @@ export class TasksPage implements OnInit {
   }
 
   protected openGroupSelector(): void {
+    this.groupSearchTerm.set('');
     this.isGroupModalOpen.set(true);
   }
 
   protected closeGroupSelector(): void {
+    this.groupSearchTerm.set('');
     this.isGroupModalOpen.set(false);
+  }
+
+  protected updateGroupSearchTerm(rawValue: string): void {
+    this.groupSearchTerm.set(rawValue);
   }
 
   protected selectGroup(group: WhatsAppGroup): void {
@@ -288,28 +317,34 @@ export class TasksPage implements OnInit {
   }
 
   protected addRecipient(): void {
-    const { recipientName, recipientPhone } = this.schedulerForm.controls;
+    const { recipientLada, recipientName, recipientPhone } = this.schedulerForm.controls;
 
+    recipientLada.markAsTouched();
     recipientName.markAsTouched();
     recipientPhone.markAsTouched();
 
-    const hasBothValues = recipientName.value.trim().length > 0 && recipientPhone.value.trim().length > 0;
-    if (!hasBothValues || recipientName.invalid || recipientPhone.invalid) {
+    const hasAllValues =
+      recipientLada.value.trim().length > 0 &&
+      recipientName.value.trim().length > 0 &&
+      recipientPhone.value.trim().length > 0;
+    if (!hasAllValues || recipientLada.invalid || recipientName.invalid || recipientPhone.invalid) {
       return;
     }
 
+    const normalizedPhone = this.buildRecipientPhone(recipientLada.value, recipientPhone.value);
     const nextRecipient: Recipient = {
       name: recipientName.value.trim(),
-      phone: recipientPhone.value.trim(),
+      phone: normalizedPhone,
     };
 
     this.recipientsArray.push(
       this.formBuilder.nonNullable.group({
         name: [nextRecipient.name, [Validators.required, Validators.minLength(2)]],
-        phone: [nextRecipient.phone, [Validators.required, Validators.pattern(/^\+?[0-9\s()-]{7,20}$/)]],
+        phone: [nextRecipient.phone, [Validators.required, Validators.pattern(/^\d{11,15}$/)]],
       }),
     );
 
+    recipientLada.setValue(DEFAULT_LADA);
     recipientName.setValue('');
     recipientPhone.setValue('');
   }
@@ -321,6 +356,10 @@ export class TasksPage implements OnInit {
   protected recipientInitials(name: string): string {
     const [first, second] = name.trim().split(/\s+/, 2);
     return `${first?.charAt(0) ?? ''}${second?.charAt(0) ?? ''}`.toUpperCase() || 'NA';
+  }
+
+  protected formatRecipientPhone(phone: string): string {
+    return this.mxPhoneDisplayPipe.transform(phone);
   }
 
   protected saveSchedule(): void {
@@ -567,8 +606,10 @@ export class TasksPage implements OnInit {
       this.recipientsArray.removeAt(0);
     }
 
+    this.schedulerForm.controls.recipientLada.setValue(DEFAULT_LADA);
     this.schedulerForm.controls.recipientName.setValue('');
     this.schedulerForm.controls.recipientPhone.setValue('');
+    this.schedulerForm.controls.recipientLada.markAsUntouched();
     this.schedulerForm.controls.recipientName.markAsUntouched();
     this.schedulerForm.controls.recipientPhone.markAsUntouched();
   }
@@ -638,5 +679,16 @@ export class TasksPage implements OnInit {
 
     const digitsOnly = trimmed.replace(/\D/g, '');
     return `${digitsOnly}@s.whatsapp.net`;
+  }
+
+  private buildRecipientPhone(lada: string, phone: string): string {
+    const ladaDigits = lada.replace(/\D/g, '');
+    const phoneDigits = phone.replace(/\D/g, '');
+
+    if (ladaDigits === '52') {
+      return `521${phoneDigits}`;
+    }
+
+    return `${ladaDigits}${phoneDigits}`;
   }
 }
