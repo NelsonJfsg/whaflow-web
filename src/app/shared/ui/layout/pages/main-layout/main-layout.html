@@ -1,5 +1,9 @@
 <section class="main-container">
 
+  @if (!isSidebarCollapsed()) {
+    <div class="sidebar-backdrop" (click)="closeSidebar()" aria-hidden="true"></div>
+  }
+
   <aside
     class="sidebar"
     [class.collapsed]="isSidebarCollapsed()"

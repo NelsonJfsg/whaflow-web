@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { SidebarItem } from '../sidebar-item/sidebar-item';
 import { NavItem } from '../../interfaces/nav-item.interface';
 import { AuthService } from '../../../../../features/auth/services/auth.service';
+import { environment } from '../../../../../../environments/environment';
 
 @Component({
   selector: 'ui-sidebar',
@@ -19,6 +20,9 @@ import { AuthService } from '../../../../../features/auth/services/auth.service'
 })
 export class Sidebar { 
   private readonly authService = inject(AuthService);
+  protected readonly platformVersion = environment.appVersion.startsWith('v')
+    ? environment.appVersion
+    : `v${environment.appVersion}`;
 
   public navItems : NavItem[] = [
     {
@@ -50,7 +54,7 @@ export class Sidebar {
   public navFootersItems : NavItem[] = [
     {
       id : 4,
-      title : 'Logout',
+      title : 'Salir',
       iconName : 'logout',
       routeLink : 'auth',
       action : () => {
@@ -59,7 +63,7 @@ export class Sidebar {
     },
     {
       id : 5,
-      title : 'Settings',
+      title : 'Configuración',
       iconName : 'settings',
       routeLink : 'settings'
     }

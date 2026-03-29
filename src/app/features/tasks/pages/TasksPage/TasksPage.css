@@ -360,6 +360,10 @@
 	min-height: 3.1rem;
 }
 
+.time-input-with-clear {
+	padding-right: 4.6rem;
+}
+
 .time-input::placeholder {
 	color: var(--text-muted);
 }
@@ -375,6 +379,38 @@
 	top: 50%;
 	transform: translateY(-50%);
 	z-index: 2;
+}
+
+.time-input-clear {
+	position: absolute;
+	right: 2.55rem;
+	top: 50%;
+	transform: translateY(-50%);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	border-radius: 999px;
+	border: 1px solid color-mix(in srgb, var(--border-color) 65%, #ffffff 35%);
+	background: color-mix(in srgb, var(--card-bg) 88%, #dbe6f1 12%);
+	color: var(--text-secondary);
+	cursor: pointer;
+	padding: 0;
+	line-height: 1;
+	transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease;
+	z-index: 2;
+}
+
+.time-input-clear:hover {
+	transform: translateY(-50%) scale(1.03);
+	border-color: color-mix(in srgb, var(--accent-color) 30%, var(--border-color) 70%);
+	background: color-mix(in srgb, var(--card-bg) 82%, #cadcf0 18%);
+}
+
+.time-input-clear:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--accent-color) 40%, #ffffff 60%);
+	outline-offset: 1px;
 }
 
 .timepicker-toggle-icon {
@@ -1040,6 +1076,16 @@
 
 	.time-field {
 		gap: 0.25rem;
+	}
+
+	.time-input-with-clear {
+		padding-right: 4.35rem;
+	}
+
+	.time-input-clear {
+		right: 2.45rem;
+		width: 1.6rem;
+		height: 1.6rem;
 	}
 
 	.option-button {

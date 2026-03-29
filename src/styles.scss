@@ -46,6 +46,16 @@ html, body {
   font-family: 'Inter', sans-serif;
 }
 
+app-root {
+  display: block;
+  min-height: 100%;
+}
+
+body.sidebar-scroll-lock {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
 :root {
   /* Fondos */
   --bg-color: #F1F5F9;          // Fondo principal

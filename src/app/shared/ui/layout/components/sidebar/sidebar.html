@@ -20,6 +20,10 @@
         <ui-sidebar-item class="sidebar-item" [isCollapsed]="collapsedSignal" [navItem]="item" />
       }
     </section>
+
+    <div class="platform-version" [class.platform-version-collapsed]="collapsedSignal()" aria-label="Version de la plataforma">
+      <span>{{ platformVersion }}</span>
+    </div>
   
     <footer class="items-container line-divider">
       @for (item of navFootersItems; track item.id ) {

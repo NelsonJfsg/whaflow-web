@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
-  apiCore: 'http://localhost:3002',
-  authApiUrl: 'http://localhost:7114/auth',
+  appVersion: '1.0.0',
+  apiCore: 'http://192.168.100.3:3002',
+  authApiUrl: 'http://192.168.100.3:7114/auth',
 };
