@@ -15,8 +15,8 @@
 
 	<section class="stats-grid" aria-label="Resumen de mensajes">
 		<article class="stat-card">
-			<p class="stat-label">Total API</p>
-			<p class="stat-value">{{ totalMessagesFromApi() }}</p>
+			<p class="stat-label">Total filtrado</p>
+			<p class="stat-value">{{ totalFilteredMessages() }}</p>
 		</article>
 		<article class="stat-card success-stat">
 			<p class="stat-label">Exitosos</p>
@@ -28,20 +28,82 @@
 		</article>
 	</section>
 
+	<section class="filters-card" aria-labelledby="filters-title">
+		<div class="filters-header">
+			<h2 id="filters-title">Filtros</h2>
+			<button type="button" class="refresh-button" (click)="clearFilters()">Limpiar filtros</button>
+		</div>
+
+		<div class="filters-grid">
+			<div class="filter-field">
+				<label for="filter-day">Dia</label>
+				<div class="filter-date-wrap">
+					<input
+						id="filter-day"
+						class="filter-date-input"
+						[matDatepicker]="dayPicker"
+						[value]="selectedDate()"
+						(dateInput)="updateDateFilter($event.value)"
+						(dateChange)="updateDateFilter($event.value)"
+						(keydown)="preventDateTyping($event)"
+						(click)="dayPicker.open()"
+						placeholder="Selecciona un dia"
+						readonly
+						aria-readonly="true"
+					/>
+					<mat-datepicker-toggle class="filter-date-toggle" [for]="dayPicker"></mat-datepicker-toggle>
+					<mat-datepicker #dayPicker></mat-datepicker>
+				</div>
+			</div>
+
+			<div class="filter-field">
+				<label for="filter-message-type">Tipo de mensaje</label>
+				<select id="filter-message-type" [value]="selectedMessageType()" (change)="updateMessageTypeFilter(filterMessageType.value)" #filterMessageType>
+					<option value="all">Todos</option>
+					<option value="scheduled">Programados</option>
+					<option value="individual">Individuales</option>
+				</select>
+			</div>
+
+			<div class="filter-field">
+				<label for="filter-scheduled-task">Mensaje programado</label>
+				<select id="filter-scheduled-task" [value]="selectedScheduledTaskId()" (change)="updateScheduledTaskFilter(filterScheduledTask.value)" #filterScheduledTask>
+					<option value="all">Todos</option>
+					@for (taskId of scheduledTaskOptions(); track taskId) {
+						<option [value]="taskId">Task #{{ taskId }}</option>
+					}
+				</select>
+			</div>
+
+			<div class="filter-field">
+				<label for="filter-group">Grupo</label>
+				<select id="filter-group" [value]="selectedGroupJid()" (change)="updateGroupFilter(filterGroup.value)" #filterGroup>
+					<option value="all">Todos</option>
+					@for (group of groupOptions(); track group.jid) {
+						<option [value]="group.jid">{{ group.name }}</option>
+					}
+				</select>
+			</div>
+		</div>
+	</section>
+
 	<section class="messages-card" aria-labelledby="messages-title">
 		<div class="messages-header">
 			<h2 id="messages-title">Mensajes Enviados</h2>
+			<p class="helper-text">Mostrando {{ paginatedMessages().length }} de {{ totalFilteredMessages() }} filtrados (API total: {{ totalMessagesFromApi() }}).</p>
 		</div>
 
 		@if (isLoadingMessages()) {
 			<p class="helper-text">Cargando mensajes enviados...</p>
 		} @else if (loadError()) {
 			<p class="error-text">{{ loadError() }}</p>
+		} @else if (!hasAnyMessages()) {
+			<p class="helper-text">No hay mensajes enviados para mostrar.</p>
 		} @else if (!hasMessages()) {
 			<p class="helper-text">No hay mensajes enviados para mostrar.</p>
 		} @else {
 			<div class="messages-grid">
-				@for (item of sentMessages(); track trackMessage($index, item)) {
+				@for (item of paginatedMessages(); track trackMessage($index, item)) {
 					<article class="message-item">
 						<header class="item-header">
 							<p class="recipient-name">{{ item.recipientName }}</p>
@@ -71,6 +133,23 @@
 						}
 					</article>
 				}
+			</div>
+
+			<div class="pagination" aria-label="Paginacion de mensajes">
+				<div class="pagination-size">
+					<label for="page-size">Por pagina</label>
+					<select id="page-size" [value]="pageSize()" (change)="updatePageSize(pageSizeSelect.value)" #pageSizeSelect>
+						@for (size of pageSizeOptions; track size) {
+							<option [value]="size">{{ size }}</option>
+						}
+					</select>
+				</div>
+
+				<div class="pagination-actions">
+					<button type="button" class="refresh-button" (click)="goToPreviousPage()" [disabled]="!canGoPrevious()">Anterior</button>
+					<p class="pagination-status">Pagina {{ currentPage() }} de {{ totalPages() }}</p>
+					<button type="button" class="refresh-button" (click)="goToNextPage()" [disabled]="!canGoNext()">Siguiente</button>
+				</div>
 			</div>
 		}
 	</section>

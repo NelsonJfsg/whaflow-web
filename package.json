@@ -24,6 +24,7 @@
   "private": true,
   "packageManager": "npm@10.9.2",
   "dependencies": {
+    "@angular/animations": "^21.1.5",
     "@angular/cdk": "~21.1.5",
     "@angular/common": "^21.1.0",
     "@angular/compiler": "^21.1.0",
@@ -32,6 +33,9 @@
     "@angular/material": "~21.1.5",
     "@angular/platform-browser": "^21.1.0",
     "@angular/router": "^21.1.0",
+    "@types/luxon": "^3.7.1",
+    "luxon": "^3.7.2",
+    "ngx-material-timepicker": "^13.1.1",
     "normalize.css": "^8.0.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"

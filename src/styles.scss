@@ -73,6 +73,22 @@ html, body {
   --error-bg: #fef2f2;
   --error-border: #fca5a5;
 
+  .tasks-timepicker-dark {
+    --body-background-color: var(--card-bg);
+    --dial-background-color: var(--primary-color);
+    --dial-active-color: #ffffff;
+    --dial-inactive-color: rgb(255 255 255 / 65%);
+    --dial-editable-active-color: var(--primary-color);
+    --dial-editable-background-color: var(--card-bg);
+    --clock-face-background-color: color-mix(in srgb, var(--card-bg) 85%, #000000 15%);
+    --clock-face-time-active-color: #ffffff;
+    --clock-face-time-inactive-color: var(--text-secondary);
+    --clock-face-inner-time-inactive-color: var(--text-muted);
+    --clock-face-time-disabled-color: color-mix(in srgb, var(--text-muted) 70%, #ffffff 30%);
+    --clock-hand-color: var(--primary-color);
+    --button-color: var(--primary-color);
+  }
+
 }
 
 [data-theme='dark'] {
@@ -110,6 +126,27 @@ html, body {
   --error-text: #fecaca;
   --error-bg: #3f1418;
   --error-border: #f87171;
+
+  .tasks-timepicker-dark {
+    --body-background-color: var(--card-bg);
+    --dial-background-color: var(--primary-color);
+    --dial-active-color: #ffffff;
+    --dial-inactive-color: rgb(255 255 255 / 70%);
+    --dial-editable-active-color: #93c5fd;
+    --dial-editable-background-color: color-mix(in srgb, var(--card-bg) 88%, #ffffff 12%);
+    --clock-face-background-color: color-mix(in srgb, var(--card-bg) 84%, #ffffff 16%);
+    --clock-face-time-active-color: #ffffff;
+    --clock-face-time-inactive-color: var(--text-secondary);
+    --clock-face-inner-time-inactive-color: var(--text-muted);
+    --clock-face-time-disabled-color: color-mix(in srgb, var(--text-muted) 72%, #ffffff 28%);
+    --clock-hand-color: #93c5fd;
+    --button-color: #ffffff;
+  }
+
+  .tasks-timepicker-dark .timepicker-button,
+  .tasks-timepicker-dark .timepicker-button > span {
+    color: #ffffff !important;
+  }
   
 }
 

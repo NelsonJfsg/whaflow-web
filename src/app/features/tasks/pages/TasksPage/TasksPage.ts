@@ -1,11 +1,20 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, merge } from 'rxjs';
+import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
 import { MxPhoneDisplayPipe } from '../../pipes/mx-phone-display.pipe';
-import { ScheduledTaskItem, TasksService, WhatsAppGroup } from '../../services/tasks.service';
+import {
+  ScheduledTaskItem,
+  ScheduledTaskUpdatePayload,
+  SendWindowPayload,
+  TasksService,
+  WhatsAppGroup,
+} from '../../services/tasks.service';
 import { NgClass } from '@angular/common';
 import { SettingsService } from '../../../settings/services/settings.service';
 
@@ -24,6 +33,7 @@ interface ScheduledTaskCard {
   jobName: string;
   message: string;
   frequency: number;
+  sendWindow?: SendWindowPayload;
   recipients: Array<{ name: string; phone: string }>;
   status: string;
   isForwarded: boolean;
@@ -38,7 +48,7 @@ interface ScheduledTaskCard {
 
 @Component({
   selector: 'tasks-page',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, NgClass],
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatSnackBarModule, NgClass, NgxMaterialTimepickerModule],
   templateUrl: './TasksPage.html',
   styleUrl: './TasksPage.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -48,6 +58,9 @@ export class TasksPage implements OnInit {
   private readonly tasksService = inject(TasksService);
   private readonly settingsService = inject(SettingsService);
   private readonly router = inject(Router);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly mxPhoneDisplayPipe = new MxPhoneDisplayPipe();
 
   protected readonly schedulerForm = this.formBuilder.nonNullable.group({
@@ -58,6 +71,7 @@ export class TasksPage implements OnInit {
     useSendWindow: this.formBuilder.nonNullable.control<boolean>(false),
     sendWindowStart: this.formBuilder.nonNullable.control<string>('08:00', [Validators.pattern(TIME_24H_FORMAT)]),
     sendWindowEnd: this.formBuilder.nonNullable.control<string>('18:00', [Validators.pattern(TIME_24H_FORMAT)]),
+    sendWindowStartAt: this.formBuilder.nonNullable.control<string>('', [Validators.pattern(TIME_24H_FORMAT)]),
     recipientType: this.formBuilder.nonNullable.control<RecipientType>('private'),
     groupId: this.formBuilder.nonNullable.control<string>(''),
     recipientLada: this.formBuilder.nonNullable.control<string>(DEFAULT_LADA, [Validators.required]),
@@ -92,12 +106,16 @@ export class TasksPage implements OnInit {
   private readonly lastRepeatFrequency = signal<number>(15);
   protected readonly isDeviceLinked = signal<boolean | null>(null);
   protected readonly showDeviceWarningModal = signal<boolean>(false);
+  protected readonly editingTaskId = signal<string>('');
+  private readonly editingOriginalTask = signal<ScheduledTaskCard | null>(null);
+  protected readonly loadingEditTaskId = signal<string>('');
 
   protected get recipientsArray(): FormArray {
     return this.schedulerForm.controls.recipients;
   }
 
   protected readonly hasScheduledTasks = computed(() => this.scheduledTasks().length > 0);
+  protected readonly isEditingTask = computed(() => this.editingTaskId().length > 0);
   protected readonly hasGroups = computed(() => this.availableGroups().length > 0);
   protected readonly filteredGroups = computed(() => {
     const searchTerm = this.groupSearchTerm().trim().toLocaleLowerCase();
@@ -164,6 +182,21 @@ export class TasksPage implements OnInit {
       sendWindowStart.touched || sendWindowEnd.touched || sendWindowStart.dirty || sendWindowEnd.dirty;
 
     return interacted && !this.isStartTimeBeforeEndTime(start, end);
+  }
+
+  protected get hasSendWindowStartAtError(): boolean {
+    const { sendWindowStartAt, useSendWindow } = this.schedulerForm.controls;
+    if (!this.canUseSendWindow || !useSendWindow.value) {
+      return false;
+    }
+
+    const startAt = sendWindowStartAt.value.trim();
+    if (startAt.length === 0) {
+      return false;
+    }
+
+    const interacted = sendWindowStartAt.touched || sendWindowStartAt.dirty;
+    return interacted && !this.isSendWindowStartAtValid();
   }
 
   protected get canAddRecipient(): boolean {
@@ -236,10 +269,20 @@ export class TasksPage implements OnInit {
       }
     }
 
+    if (this.isEditingTask()) {
+      return this.hasPendingEditChanges();
+    }
+
     return true;
   }
 
   ngOnInit(): void {
+    merge(this.schedulerForm.valueChanges, this.schedulerForm.statusChanges)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        this.changeDetectorRef.markForCheck();
+      });
+
     this.checkDeviceStatus();
     this.loadScheduledTasks();
   }
@@ -443,20 +486,7 @@ export class TasksPage implements OnInit {
       return;
     }
 
-    const selectedGroup = this.selectedGroup();
-
-    const recipients =
-      recipientType === 'group'
-        ? [
-            {
-              name: selectedGroup?.Name?.trim() || 'Grupo',
-              phone: this.schedulerForm.controls.groupId.value.trim(),
-            },
-          ]
-        : this.recipientsArray.getRawValue().map((recipient: Recipient) => ({
-            name: recipient.name.trim(),
-            phone: this.toWhatsappJid(recipient.phone),
-          }));
+    const recipients = this.buildRecipientsPayload(recipientType);
 
     const payload = {
       is_forwarded: false,
@@ -465,6 +495,40 @@ export class TasksPage implements OnInit {
       ...(sendWindow ? { send_window: sendWindow } : {}),
       recipients,
     };
+
+    if (this.isEditingTask()) {
+      const originalTask = this.editingOriginalTask();
+      if (!originalTask) {
+        this.saveFeedback.set('No fue posible cargar la tarea para editar.');
+        return;
+      }
+
+      const updatePayload = this.buildUpdatePayload(originalTask, payload.message, payload.frequency, payload.recipients, sendWindow);
+      if (Object.keys(updatePayload).length === 0) {
+        this.saveFeedback.set('No hay cambios para guardar.');
+        return;
+      }
+
+      this.isSending.set(true);
+      this.saveFeedback.set('Guardando cambios...');
+
+      this.tasksService
+        .updateScheduledTaskById(originalTask.id, updatePayload)
+        .pipe(finalize(() => this.isSending.set(false)))
+        .subscribe({
+          next: () => {
+            this.saveFeedback.set('Tarea editada correctamente.');
+            this.showTaskUpdatedNotification();
+            this.resetSchedulerFormAfterSuccess();
+            this.loadScheduledTasks();
+          },
+          error: () => {
+            this.saveFeedback.set('No se pudo editar la tarea programada.');
+          },
+        });
+
+      return;
+    }
 
     this.isSending.set(true);
     this.saveFeedback.set('Enviando mensaje...');
@@ -475,6 +539,8 @@ export class TasksPage implements OnInit {
       .subscribe({
         next: () => {
           this.saveFeedback.set('Mensaje enviado correctamente.');
+          this.showTaskCreatedNotification();
+          this.resetSchedulerFormAfterSuccess();
           this.loadScheduledTasks();
         },
         error: () => {
@@ -536,6 +602,7 @@ export class TasksPage implements OnInit {
       jobName: task.jobName,
       message: task.message,
       frequency: task.frequency,
+      sendWindow: task.sendWindow,
       recipients: task.recipients,
       status: task.status,
       isForwarded: task.isForwarded,
@@ -599,6 +666,35 @@ export class TasksPage implements OnInit {
     return this.actionTaskId() === task.id;
   }
 
+  protected isTaskEditLoading(task: ScheduledTaskCard): boolean {
+    return this.loadingEditTaskId() === task.id;
+  }
+
+  protected editScheduledTask(task: ScheduledTaskCard): void {
+    this.loadingEditTaskId.set(task.id);
+    this.saveFeedback.set('Cargando datos de la tarea...');
+
+    this.tasksService
+      .getScheduledTaskById(task.id)
+      .pipe(finalize(() => this.loadingEditTaskId.set('')))
+      .subscribe({
+        next: (response) => {
+          const normalizedTask = this.tasksService.normalizeScheduledTask(response);
+          const taskForEdit = this.toCardModel(normalizedTask);
+          this.prefillTaskForm(taskForEdit);
+          this.saveFeedback.set(`Editando tarea ${taskForEdit.jobName || taskForEdit.id}.`);
+        },
+        error: () => {
+          this.saveFeedback.set('No se pudo cargar la tarea para editar.');
+        },
+      });
+  }
+
+  protected cancelEditingTask(): void {
+    this.resetSchedulerFormAfterSuccess();
+    this.saveFeedback.set('Edicion cancelada.');
+  }
+
   private loadMyGroups(): void {
     if (this.hasLoadedGroups()) {
       return;
@@ -658,7 +754,7 @@ export class TasksPage implements OnInit {
     this.schedulerForm.controls.groupId.setValue('');
   }
 
-  private buildSendWindow(shouldRepeat: boolean): { start: string; end: string } | null | undefined {
+  private buildSendWindow(shouldRepeat: boolean): { start: string; end: string; start_at?: string } | null | undefined {
     const useSendWindow = this.schedulerForm.controls.useSendWindow.value;
     if (!shouldRepeat || !useSendWindow) {
       return undefined;
@@ -666,6 +762,7 @@ export class TasksPage implements OnInit {
 
     const start = this.schedulerForm.controls.sendWindowStart.value.trim();
     const end = this.schedulerForm.controls.sendWindowEnd.value.trim();
+    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
 
     const startIsValid = TIME_24H_FORMAT.test(start);
     const endIsValid = TIME_24H_FORMAT.test(end);
@@ -682,7 +779,16 @@ export class TasksPage implements OnInit {
       return null;
     }
 
-    return { start, end };
+    if (startAt.length > 0 && !this.isSendWindowStartAtValid()) {
+      this.schedulerForm.controls.sendWindowStartAt.markAsTouched();
+      return null;
+    }
+
+    return {
+      start,
+      end,
+      ...(startAt.length > 0 ? { start_at: startAt } : {}),
+    };
   }
 
   private isSendWindowValidForSubmit(shouldRepeat: boolean): boolean {
@@ -698,16 +804,42 @@ export class TasksPage implements OnInit {
       return false;
     }
 
-    return this.isStartTimeBeforeEndTime(start, end);
+    if (!this.isStartTimeBeforeEndTime(start, end)) {
+      return false;
+    }
+
+    return this.isSendWindowStartAtValid();
+  }
+
+  private isSendWindowStartAtValid(): boolean {
+    const { sendWindowStart, sendWindowEnd, sendWindowStartAt } = this.schedulerForm.controls;
+
+    const start = sendWindowStart.value.trim();
+    const end = sendWindowEnd.value.trim();
+    const startAt = sendWindowStartAt.value.trim();
+
+    if (startAt.length === 0) {
+      return true;
+    }
+
+    if (!TIME_24H_FORMAT.test(startAt) || !TIME_24H_FORMAT.test(start) || !TIME_24H_FORMAT.test(end)) {
+      return false;
+    }
+
+    const startMinutes = this.toMinutes(start);
+    const endMinutes = this.toMinutes(end);
+    const startAtMinutes = this.toMinutes(startAt);
+
+    return startAtMinutes >= startMinutes && startAtMinutes <= endMinutes;
   }
 
   private isStartTimeBeforeEndTime(start: string, end: string): boolean {
-    const toMinutes = (time: string): number => {
-      const [hours, minutes] = time.split(':').map((value) => Number.parseInt(value, 10));
-      return hours * 60 + minutes;
-    };
+    return this.toMinutes(start) < this.toMinutes(end);
+  }
 
-    return toMinutes(start) < toMinutes(end);
+  private toMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map((value) => Number.parseInt(value, 10));
+    return hours * 60 + minutes;
   }
 
   private toWhatsappJid(rawPhone: string): string {
@@ -718,6 +850,178 @@ export class TasksPage implements OnInit {
 
     const digitsOnly = trimmed.replace(/\D/g, '');
     return `${digitsOnly}@s.whatsapp.net`;
+  }
+
+  private toEditableRecipientPhone(phone: string): string {
+    const withoutDomain = phone.includes('@') ? phone.split('@')[0] : phone;
+    return withoutDomain.replace(/\D/g, '');
+  }
+
+  private isGroupRecipientPhone(phone: string): boolean {
+    return phone.includes('@g.us');
+  }
+
+  private prefillTaskForm(task: ScheduledTaskCard): void {
+    this.editingTaskId.set(task.id);
+    this.editingOriginalTask.set(task);
+
+    const isGroupRecipient = task.recipients.some((recipient) => this.isGroupRecipientPhone(recipient.phone));
+    const shouldRepeat = task.frequency > 0;
+    const frequencyOption: FrequencyOption =
+      task.frequency === 15 || task.frequency === 30 || task.frequency === 60 ? (task.frequency as 15 | 30 | 60) : 'custom';
+
+    this.schedulerForm.controls.message.setValue(task.message ?? '');
+    this.schedulerForm.controls.repeat.setValue(shouldRepeat);
+    this.schedulerForm.controls.frequency.setValue(task.frequency);
+    this.schedulerForm.controls.frequencyOption.setValue(shouldRepeat ? frequencyOption : 15);
+    this.schedulerForm.controls.useSendWindow.setValue(!!task.sendWindow);
+    this.schedulerForm.controls.sendWindowStart.setValue(task.sendWindow?.start ?? '08:00');
+    this.schedulerForm.controls.sendWindowEnd.setValue(task.sendWindow?.end ?? '18:00');
+    this.schedulerForm.controls.sendWindowStartAt.setValue(task.sendWindow?.start_at ?? '');
+
+    this.resetPrivateRecipientSelection();
+    this.resetGroupSelection();
+
+    if (isGroupRecipient) {
+      const primaryGroup = task.recipients[0];
+      this.schedulerForm.controls.recipientType.setValue('group');
+      this.schedulerForm.controls.groupId.setValue(primaryGroup?.phone?.trim() ?? '');
+      this.loadMyGroups();
+    } else {
+      this.schedulerForm.controls.recipientType.setValue('private');
+      for (const recipient of task.recipients) {
+        const editablePhone = this.toEditableRecipientPhone(recipient.phone);
+        if (!editablePhone) {
+          continue;
+        }
+
+        this.recipientsArray.push(
+          this.formBuilder.nonNullable.group({
+            name: [recipient.name.trim(), [Validators.required, Validators.minLength(2)]],
+            phone: [editablePhone, [Validators.required, Validators.pattern(/^\d{11,15}$/)]],
+          }),
+        );
+      }
+    }
+
+    this.lastRepeatFrequency.set(shouldRepeat ? task.frequency : 15);
+    this.schedulerForm.markAsPristine();
+    this.schedulerForm.markAsUntouched();
+  }
+
+  private buildUpdatePayload(
+    originalTask: ScheduledTaskCard,
+    message: string,
+    frequency: number,
+    recipients: Array<{ name: string; phone: string }>,
+    sendWindow: SendWindowPayload | undefined,
+  ): ScheduledTaskUpdatePayload {
+    const payload: ScheduledTaskUpdatePayload = {};
+
+    if (message !== originalTask.message) {
+      payload.message = message;
+    }
+
+    if (frequency > 0 && frequency !== originalTask.frequency) {
+      payload.frequency = frequency;
+    }
+
+    if (!this.areRecipientsEqual(recipients, originalTask.recipients)) {
+      payload.recipients = recipients;
+    }
+
+    if (!this.areSendWindowsEqual(sendWindow, originalTask.sendWindow)) {
+      if (sendWindow) {
+        payload.send_window = sendWindow;
+      }
+    }
+
+    return payload;
+  }
+
+  private hasPendingEditChanges(): boolean {
+    const originalTask = this.editingOriginalTask();
+    if (!originalTask) {
+      return false;
+    }
+
+    const shouldRepeat = this.schedulerForm.controls.repeat.value;
+    const frequency = shouldRepeat ? this.schedulerForm.controls.frequency.value : 0;
+    const sendWindow = this.buildSendWindowPayload(shouldRepeat);
+    const recipients = this.buildRecipientsPayload(this.schedulerForm.controls.recipientType.value);
+    const message = this.schedulerForm.controls.message.value.trim();
+
+    const payload = this.buildUpdatePayload(originalTask, message, frequency, recipients, sendWindow);
+    return Object.keys(payload).length > 0;
+  }
+
+  private buildSendWindowPayload(shouldRepeat: boolean): SendWindowPayload | undefined {
+    const useSendWindow = this.schedulerForm.controls.useSendWindow.value;
+    if (!shouldRepeat || !useSendWindow) {
+      return undefined;
+    }
+
+    const start = this.schedulerForm.controls.sendWindowStart.value.trim();
+    const end = this.schedulerForm.controls.sendWindowEnd.value.trim();
+    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
+
+    return {
+      start,
+      end,
+      ...(startAt ? { start_at: startAt } : {}),
+    };
+  }
+
+  private buildRecipientsPayload(recipientType: RecipientType): Array<{ name: string; phone: string }> {
+    if (recipientType === 'group') {
+      const selectedGroup = this.selectedGroup();
+      const fallbackName = this.editingOriginalTask()?.recipients[0]?.name?.trim() || 'Grupo';
+      return [
+        {
+          name: selectedGroup?.Name?.trim() || fallbackName,
+          phone: this.schedulerForm.controls.groupId.value.trim(),
+        },
+      ];
+    }
+
+    return this.recipientsArray.getRawValue().map((recipient: Recipient) => ({
+      name: recipient.name.trim(),
+      phone: this.toWhatsappJid(recipient.phone),
+    }));
+  }
+
+  private areSendWindowsEqual(current: SendWindowPayload | undefined, original: SendWindowPayload | undefined): boolean {
+    const normalize = (value: SendWindowPayload | undefined): string => {
+      if (!value) {
+        return '';
+      }
+
+      return JSON.stringify({
+        start: value.start,
+        end: value.end,
+        start_at: value.start_at || '',
+      });
+    };
+
+    return normalize(current) === normalize(original);
+  }
+
+  private areRecipientsEqual(
+    current: Array<{ name: string; phone: string }>,
+    original: Array<{ name: string; phone: string }>,
+  ): boolean {
+    if (current.length !== original.length) {
+      return false;
+    }
+
+    return current.every((recipient, index) => {
+      const originalRecipient = original[index];
+      if (!originalRecipient) {
+        return false;
+      }
+
+      return recipient.name.trim() === originalRecipient.name.trim() && recipient.phone.trim() === originalRecipient.phone.trim();
+    });
   }
 
   private buildRecipientPhone(lada: string, phone: string): string {
@@ -759,5 +1063,44 @@ export class TasksPage implements OnInit {
   protected retryDeviceCheck(): void {
     this.showDeviceWarningModal.set(false);
     this.checkDeviceStatus();
+  }
+
+  private showTaskCreatedNotification(): void {
+    this.snackBar.open('Tarea creada con exito.', 'Cerrar', {
+      duration: 3200,
+      horizontalPosition: 'right',
+      verticalPosition: 'top',
+    });
+  }
+
+  private showTaskUpdatedNotification(): void {
+    this.snackBar.open('Tarea editada con exito.', 'Cerrar', {
+      duration: 3200,
+      horizontalPosition: 'right',
+      verticalPosition: 'top',
+    });
+  }
+
+  private resetSchedulerFormAfterSuccess(): void {
+    this.schedulerForm.controls.message.setValue('');
+    this.schedulerForm.controls.repeat.setValue(false);
+    this.schedulerForm.controls.frequency.setValue(0);
+    this.schedulerForm.controls.frequencyOption.setValue(15);
+    this.schedulerForm.controls.useSendWindow.setValue(false);
+    this.schedulerForm.controls.sendWindowStart.setValue('08:00');
+    this.schedulerForm.controls.sendWindowEnd.setValue('18:00');
+    this.schedulerForm.controls.sendWindowStartAt.setValue('');
+    this.schedulerForm.controls.recipientType.setValue('private');
+
+    this.resetPrivateRecipientSelection();
+    this.resetGroupSelection();
+
+    this.groupSearchTerm.set('');
+    this.lastRepeatFrequency.set(15);
+    this.editingTaskId.set('');
+    this.editingOriginalTask.set(null);
+
+    this.schedulerForm.markAsPristine();
+    this.schedulerForm.markAsUntouched();
   }
 }
