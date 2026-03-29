@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal }
 import { finalize } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import { LoggedSessionInfo, SettingsService } from '../../services/settings.service';
+import { TokenService } from '../../../../core/services/token.service';
 
 @Component({
   selector: 'settings-page',
@@ -12,8 +13,10 @@ import { LoggedSessionInfo, SettingsService } from '../../services/settings.serv
 })
 export class SettingsPage implements OnInit {
   private readonly settingsService = inject(SettingsService);
+  private readonly tokenService = inject(TokenService);
   private readonly refreshIntervalMs = 10000;
   private qrRefreshTimerId: ReturnType<typeof setInterval> | null = null;
+  private activeUserScope = 'anonymous';
 
   protected readonly qrImageSrc = signal<string>('');
   protected readonly qrStatusText = signal<string>('Aun no hay QR cargado.');
@@ -24,6 +27,7 @@ export class SettingsPage implements OnInit {
   protected readonly loggedSession = signal<LoggedSessionInfo | null>(null);
 
   ngOnInit(): void {
+    this.syncUserScope(true);
     this.loadQr();
     this.startAutoRefresh();
   }
@@ -33,6 +37,8 @@ export class SettingsPage implements OnInit {
   }
 
   protected loadQr(): void {
+    this.syncUserScope();
+
     if (this.isLoadingQr()) {
       return;
     }
@@ -128,5 +134,20 @@ export class SettingsPage implements OnInit {
 
     clearInterval(this.qrRefreshTimerId);
     this.qrRefreshTimerId = null;
+  }
+
+  private syncUserScope(forceReset = false): void {
+    const nextScope = this.tokenService.getUserScopeKey();
+    if (!forceReset && nextScope === this.activeUserScope) {
+      return;
+    }
+
+    this.activeUserScope = nextScope;
+    this.stopAutoRefresh();
+    this.qrImageSrc.set('');
+    this.qrError.set('');
+    this.logoutFeedback.set('');
+    this.loggedSession.set(null);
+    this.qrStatusText.set('Aun no hay QR cargado.');
   }
 }

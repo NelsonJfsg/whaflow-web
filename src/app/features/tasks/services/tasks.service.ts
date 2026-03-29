@@ -1,5 +1,5 @@
 
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -121,38 +121,32 @@ export class TasksService {
   private readonly endpoint = `${environment.apiCore}/tasks/send-message`;
   private readonly scheduledEndpoint = `${environment.apiCore}/tasks/scheduled`;
   private readonly groupsEndpoint = `${environment.apiCore}/groups/my`;
-  private readonly authToken = 'Basic bmVsc29uamZzZzpuZWxzb24xMjQh';
-
-  private readonly headers = new HttpHeaders({
-    Authorization: this.authToken,
-    'Content-Type': 'application/json',
-  });
 
   sendMessage(payload: SendMessagePayload): Observable<unknown> {
-    return this.httpClient.post(this.endpoint, payload, { headers: this.headers });
+    return this.httpClient.post(this.endpoint, payload);
   }
 
   getScheduledTasks(): Observable<unknown> {
-    return this.httpClient.get(this.scheduledEndpoint, { headers: this.headers });
+    return this.httpClient.get(this.scheduledEndpoint);
   }
 
   getScheduledTaskById(id: string): Observable<unknown> {
     const target = `${this.scheduledEndpoint}/${encodeURIComponent(id)}`;
-    return this.httpClient.get(target, { headers: this.headers });
+    return this.httpClient.get(target);
   }
 
   getMyGroups(): Observable<unknown> {
-    return this.httpClient.get(this.groupsEndpoint, { headers: this.headers });
+    return this.httpClient.get(this.groupsEndpoint);
   }
 
   updateScheduledTaskActionById(id: string, action: ScheduledTaskAction): Observable<unknown> {
     const target = `${this.scheduledEndpoint}/${encodeURIComponent(id)}/action`;
-    return this.httpClient.patch(target, { action }, { headers: this.headers });
+    return this.httpClient.patch(target, { action });
   }
 
   updateScheduledTaskById(id: string, payload: ScheduledTaskUpdatePayload): Observable<unknown> {
     const target = `${this.scheduledEndpoint}/${encodeURIComponent(id)}`;
-    return this.httpClient.patch(target, payload, { headers: this.headers });
+    return this.httpClient.patch(target, payload);
   }
 
   normalizeScheduledTasks(payload: unknown): ScheduledTaskItem[] {

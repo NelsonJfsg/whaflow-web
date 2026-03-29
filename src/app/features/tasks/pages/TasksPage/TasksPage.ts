@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -7,6 +8,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { finalize, merge } from 'rxjs';
 import { NgxMaterialTimepickerModule } from 'ngx-material-timepicker';
+import { TokenService } from '../../../../core/services/token.service';
 import { MxPhoneDisplayPipe } from '../../pipes/mx-phone-display.pipe';
 import {
   ScheduledTaskItem,
@@ -62,6 +64,8 @@ export class TasksPage implements OnInit {
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
   private readonly mxPhoneDisplayPipe = new MxPhoneDisplayPipe();
+  private readonly tokenService = inject(TokenService);
+  private readonly activeUserScope = signal<string>('anonymous');
 
   protected readonly schedulerForm = this.formBuilder.nonNullable.group({
     message: ['', [Validators.required]],
@@ -277,6 +281,8 @@ export class TasksPage implements OnInit {
   }
 
   ngOnInit(): void {
+    this.syncUserScope(true);
+
     merge(this.schedulerForm.valueChanges, this.schedulerForm.statusChanges)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
@@ -522,8 +528,8 @@ export class TasksPage implements OnInit {
             this.resetSchedulerFormAfterSuccess();
             this.loadScheduledTasks();
           },
-          error: () => {
-            this.saveFeedback.set('No se pudo editar la tarea programada.');
+          error: (error: unknown) => {
+            this.saveFeedback.set(this.resolveScheduleRequestErrorMessage(error, true));
           },
         });
 
@@ -543,8 +549,8 @@ export class TasksPage implements OnInit {
           this.resetSchedulerFormAfterSuccess();
           this.loadScheduledTasks();
         },
-        error: () => {
-          this.saveFeedback.set('No se pudo enviar el mensaje. Verifica el servicio en localhost:3000.');
+        error: (error: unknown) => {
+          this.saveFeedback.set(this.resolveScheduleRequestErrorMessage(error, false));
         },
       });
   }
@@ -578,6 +584,8 @@ export class TasksPage implements OnInit {
   }
 
   private loadScheduledTasks(): void {
+    this.syncUserScope();
+
     this.isLoadingScheduled.set(true);
     this.scheduledLoadError.set('');
 
@@ -696,6 +704,8 @@ export class TasksPage implements OnInit {
   }
 
   private loadMyGroups(): void {
+    this.syncUserScope();
+
     if (this.hasLoadedGroups()) {
       return;
     }
@@ -734,6 +744,25 @@ export class TasksPage implements OnInit {
           this.groupsLoadError.set('No fue posible cargar tus grupos. Verifica el endpoint /groups/my.');
         },
       });
+  }
+
+  private syncUserScope(forceReset = false): void {
+    const nextScope = this.tokenService.getUserScopeKey();
+    const previousScope = this.activeUserScope();
+    if (!forceReset && nextScope === previousScope) {
+      return;
+    }
+
+    this.activeUserScope.set(nextScope);
+    this.scheduledTasks.set([]);
+    this.availableGroups.set([]);
+    this.hasLoadedGroups.set(false);
+    this.groupsLoadError.set('');
+    this.scheduledLoadError.set('');
+    this.actionTaskId.set('');
+    this.loadingEditTaskId.set('');
+    this.resetSchedulerFormAfterSuccess();
+    this.saveFeedback.set('');
   }
 
   private resetPrivateRecipientSelection(): void {
@@ -1102,5 +1131,62 @@ export class TasksPage implements OnInit {
 
     this.schedulerForm.markAsPristine();
     this.schedulerForm.markAsUntouched();
+  }
+
+  private resolveScheduleRequestErrorMessage(error: unknown, isEditRequest: boolean): string {
+    const defaultMessage = isEditRequest
+      ? 'No se pudo editar la tarea programada.'
+      : 'No se pudo enviar el mensaje. Verifica el servicio en localhost:3000.';
+
+    if (!(error instanceof HttpErrorResponse)) {
+      return defaultMessage;
+    }
+
+    const serverMessage = this.extractServerMessage(error.error).toLocaleLowerCase();
+    const invalidStartAtInWindow =
+      error.status === 400 &&
+      (serverMessage.includes('start_at') || serverMessage.includes('start at')) &&
+      (serverMessage.includes('window') || serverMessage.includes('ventana') || serverMessage.includes('start') || serverMessage.includes('end'));
+
+    if (invalidStartAtInWindow) {
+      return 'El primer envio debe estar dentro del horario configurado en la ventana de envio.';
+    }
+
+    return defaultMessage;
+  }
+
+  private extractServerMessage(payload: unknown): string {
+    if (!payload) {
+      return '';
+    }
+
+    if (typeof payload === 'string') {
+      return payload;
+    }
+
+    if (Array.isArray(payload)) {
+      return payload.filter((item): item is string => typeof item === 'string').join(' ');
+    }
+
+    if (typeof payload !== 'object') {
+      return '';
+    }
+
+    const record = payload as Record<string, unknown>;
+    const candidates = ['message', 'error', 'detail', 'details'];
+    for (const key of candidates) {
+      const value = record[key];
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value;
+      }
+      if (Array.isArray(value)) {
+        const joined = value.filter((item): item is string => typeof item === 'string').join(' ').trim();
+        if (joined.length > 0) {
+          return joined;
+        }
+      }
+    }
+
+    return '';
   }
 }

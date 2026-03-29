@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -30,15 +30,9 @@ export class DashboardService {
   private readonly httpClient = inject(HttpClient);
 
   private readonly messagesEndpoint = `${environment.apiCore}/messages`;
-  private readonly authToken = 'Basic bmVsc29uamZzZzpuZWxzb24xMjQh';
-
-  private readonly headers = new HttpHeaders({
-    Authorization: this.authToken,
-    'Content-Type': 'application/json',
-  });
 
   getSentMessages(): Observable<unknown> {
-    return this.httpClient.get(this.messagesEndpoint, { headers: this.headers });
+    return this.httpClient.get(this.messagesEndpoint);
   }
 
   normalizeSentMessages(payload: unknown): SentMessagesResponse {

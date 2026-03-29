@@ -5,6 +5,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatNativeDateModule } from '@angular/material/core';
 import { finalize } from 'rxjs';
 import { DashboardService, SentMessageItem } from '../../services/dashboard.service';
+import { TokenService } from '../../../../core/services/token.service';
 
 interface SentMessageCard {
   id: number;
@@ -31,6 +32,8 @@ type MessageTypeFilter = 'all' | 'scheduled' | 'individual';
 })
 export class DashboardPage implements OnInit {
   private readonly dashboardService = inject(DashboardService);
+  private readonly tokenService = inject(TokenService);
+  private readonly activeUserScope = signal<string>('anonymous');
 
   protected readonly isLoadingMessages = signal<boolean>(false);
   protected readonly loadError = signal<string>('');
@@ -140,6 +143,7 @@ export class DashboardPage implements OnInit {
   );
 
   ngOnInit(): void {
+    this.syncUserScope(true);
     this.loadSentMessages();
   }
 
@@ -234,6 +238,8 @@ export class DashboardPage implements OnInit {
   }
 
   private loadSentMessages(): void {
+    this.syncUserScope();
+
     if (this.isLoadingMessages()) {
       return;
     }
@@ -257,6 +263,24 @@ export class DashboardPage implements OnInit {
           this.loadError.set('No fue posible cargar los mensajes enviados desde /messages.');
         },
       });
+  }
+
+  private syncUserScope(forceReset = false): void {
+    const nextScope = this.tokenService.getUserScopeKey();
+    const previousScope = this.activeUserScope();
+    if (!forceReset && nextScope === previousScope) {
+      return;
+    }
+
+    this.activeUserScope.set(nextScope);
+    this.totalMessagesFromApi.set(0);
+    this.sentMessages.set([]);
+    this.selectedDate.set(null);
+    this.selectedMessageType.set('all');
+    this.selectedScheduledTaskId.set('all');
+    this.selectedGroupJid.set('all');
+    this.currentPage.set(1);
+    this.loadError.set('');
   }
 
   private toCard(item: SentMessageItem): SentMessageCard {
