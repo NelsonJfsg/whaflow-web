@@ -44,6 +44,45 @@ export class TokenService {
     return localStorage.getItem(USER_NAME_KEY);
   }
 
+  getUserId(): string | null {
+    const token = this.getToken();
+    if (!token) {
+      return null;
+    }
+
+    const payload = this.decodeToken(token);
+    if (!payload) {
+      return null;
+    }
+
+    const candidateKeys = ['userId', 'user_id', 'sub', 'uid', 'id', 'email'];
+    for (const key of candidateKeys) {
+      const value = payload[key];
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim();
+      }
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return `${Math.trunc(value)}`;
+      }
+    }
+
+    return null;
+  }
+
+  getUserScopeKey(): string {
+    const userId = this.getUserId();
+    if (userId) {
+      return `u:${userId}`;
+    }
+
+    const userName = this.getUserName();
+    if (userName && userName.trim().length > 0) {
+      return `n:${userName.trim().toLocaleLowerCase()}`;
+    }
+
+    return 'anonymous';
+  }
+
   /**
    * Remove all authentication data from localStorage (logout).
    */
@@ -93,11 +132,22 @@ export class TokenService {
         return null;
       }
 
-      const payload = parts[1];
+      const payload = this.base64UrlToBase64(parts[1]);
       const decoded = JSON.parse(atob(payload));
       return decoded;
     } catch {
       return null;
     }
+  }
+
+  private base64UrlToBase64(value: string): string {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = normalized.length % 4;
+
+    if (padding === 0) {
+      return normalized;
+    }
+
+    return `${normalized}${'='.repeat(4 - padding)}`;
   }
 }

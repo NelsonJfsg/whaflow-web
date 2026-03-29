@@ -57,7 +57,7 @@ export class AuthService {
    */
   logout(): void {
     this.tokenService.clearToken();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/auth']);
   }
 
   extractToken(response: unknown): string | null {

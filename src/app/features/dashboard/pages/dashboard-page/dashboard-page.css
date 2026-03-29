@@ -101,9 +101,91 @@
 	animation: rise-in 360ms ease-out;
 }
 
+.filters-card {
+	border-radius: 1.25rem;
+	background: color-mix(in srgb, var(--card-bg) 74%, #dce8f4 26%);
+	border: 1px solid color-mix(in srgb, var(--border-color) 54%, #ffffff 46%);
+	box-shadow: 0 16px 36px -30px var(--shadow-color);
+	padding: 1rem;
+	display: grid;
+	gap: 0.75rem;
+}
+
+.filters-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.filters-header h2 {
+	margin: 0;
+	font-size: 1.1rem;
+}
+
+.filters-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	gap: 0.7rem;
+}
+
+.filter-field {
+	display: grid;
+	gap: 0.35rem;
+}
+
+
+.filter-date-wrap {
+	position: relative;
+	width: 100%;
+}
+
+.filter-date-input {
+	padding-right: 2.5rem !important;
+	cursor: pointer;
+}
+
+.filter-field label {
+	font-size: 0.82rem;
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+
+.filter-field input,
+.filter-field select,
+.pagination-size select {
+	width: 100%;
+	box-sizing: border-box;
+	border-radius: 0.65rem;
+	border: 1px solid color-mix(in srgb, var(--border-color) 70%, #ffffff 30%);
+	background: color-mix(in srgb, var(--card-bg) 84%, #ffffff 16%);
+	color: var(--text-color);
+	padding: 0.58rem 0.7rem;
+	font: inherit;
+}
+
+.filter-date-toggle {
+	position: absolute;
+	right: 0.35rem;
+	top: 50%;
+	transform: translateY(-50%);
+	z-index: 2;
+}
+
+.filter-date-toggle ::ng-deep .mat-mdc-icon-button {
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+}
+
 .messages-header h2 {
 	margin: 0;
 	font-size: 1.2rem;
+}
+
+.messages-header {
+	display: grid;
+	gap: 0.35rem;
 }
 
 .helper-text {
@@ -206,6 +288,41 @@
 	font-size: 0.8rem;
 }
 
+.pagination {
+	margin-top: 0.35rem;
+	padding-top: 0.65rem;
+	border-top: 1px solid color-mix(in srgb, var(--border-color) 74%, #ffffff 26%);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	flex-wrap: wrap;
+}
+
+.pagination-size {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.pagination-size label,
+.pagination-status {
+	margin: 0;
+	font-size: 0.86rem;
+	color: var(--text-secondary);
+}
+
+.pagination-size select {
+	min-width: 84px;
+	padding: 0.42rem 0.58rem;
+}
+
+.pagination-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.55rem;
+}
+
 .refresh-button:focus-visible {
 	outline: 3px solid color-mix(in srgb, var(--accent-color) 40%, #ffffff 60%);
 	outline-offset: 1px;
@@ -233,6 +350,20 @@
 
 	.refresh-button {
 		width: 100%;
+	}
+
+	.filters-header {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.pagination {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.pagination-actions {
+		justify-content: space-between;
 	}
 }
 

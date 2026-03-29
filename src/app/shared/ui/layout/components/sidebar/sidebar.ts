@@ -1,9 +1,10 @@
 import { NgClass } from '@angular/common';
-import { Component, Input, signal, WritableSignal } from '@angular/core';
+import { Component, Input, WritableSignal, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { SidebarItem } from '../sidebar-item/sidebar-item';
 import { NavItem } from '../../interfaces/nav-item.interface';
+import { AuthService } from '../../../../../features/auth/services/auth.service';
 
 @Component({
   selector: 'ui-sidebar',
@@ -17,6 +18,7 @@ import { NavItem } from '../../interfaces/nav-item.interface';
   styleUrl: './sidebar.css',
 })
 export class Sidebar { 
+  private readonly authService = inject(AuthService);
 
   public navItems : NavItem[] = [
     {
@@ -52,7 +54,7 @@ export class Sidebar {
       iconName : 'logout',
       routeLink : 'auth',
       action : () => {
-        localStorage.removeItem('accessToken');
+        this.authService.logout();
       }
     },
     {

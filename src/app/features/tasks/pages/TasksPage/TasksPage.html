@@ -158,23 +158,65 @@
 
 						@if (schedulerForm.controls.useSendWindow.value) {
 							<div class="send-window-grid">
-								<mat-form-field appearance="outline" subscriptSizing="dynamic" class="time-field">
-									<mat-label>Desde</mat-label>
-									<input matInput id="send-window-start" type="time" formControlName="sendWindowStart" />
-								</mat-form-field>
+								<div class="time-field">
+									<label class="time-field-label" for="send-window-start">Desde</label>
+									<div class="time-input-wrap">
+										<input id="send-window-start" class="time-input" formControlName="sendWindowStart" [ngxTimepicker]="sendWindowStartPicker" [format]="24" readonly aria-readonly="true" />
+										<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowStartPicker">
+											<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
+												<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<circle cx="12" cy="12" r="9"></circle>
+													<path d="M12 7v5l3 2"></path>
+												</svg>
+											</span>
+										</ngx-material-timepicker-toggle>
+									</div>
+									<ngx-material-timepicker #sendWindowStartPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
+								</div>
 
-								<mat-form-field appearance="outline" subscriptSizing="dynamic" class="time-field">
-									<mat-label>Hasta</mat-label>
-									<input matInput id="send-window-end" type="time" formControlName="sendWindowEnd" />
-								</mat-form-field>
+								<div class="time-field">
+									<label class="time-field-label" for="send-window-end">Hasta</label>
+									<div class="time-input-wrap">
+										<input id="send-window-end" class="time-input" formControlName="sendWindowEnd" [ngxTimepicker]="sendWindowEndPicker" [format]="24" readonly aria-readonly="true" />
+										<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowEndPicker">
+											<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
+												<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<circle cx="12" cy="12" r="9"></circle>
+													<path d="M12 7v5l3 2"></path>
+												</svg>
+											</span>
+										</ngx-material-timepicker-toggle>
+									</div>
+									<ngx-material-timepicker #sendWindowEndPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
+								</div>
+
+								<div class="time-field">
+									<label class="time-field-label" for="send-window-start-at">Primer envio (opcional)</label>
+									<div class="time-input-wrap">
+										<input id="send-window-start-at" class="time-input" formControlName="sendWindowStartAt" [ngxTimepicker]="sendWindowStartAtPicker" [format]="24" readonly aria-readonly="true" />
+										<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowStartAtPicker">
+											<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
+												<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+													<circle cx="12" cy="12" r="9"></circle>
+													<path d="M12 7v5l3 2"></path>
+												</svg>
+											</span>
+										</ngx-material-timepicker-toggle>
+									</div>
+									<ngx-material-timepicker #sendWindowStartAtPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
+								</div>
 							</div>
 
-							@if ((schedulerForm.controls.sendWindowStart.invalid || schedulerForm.controls.sendWindowEnd.invalid) && (schedulerForm.controls.sendWindowStart.touched || schedulerForm.controls.sendWindowEnd.touched)) {
+							@if ((schedulerForm.controls.sendWindowStart.invalid || schedulerForm.controls.sendWindowEnd.invalid || schedulerForm.controls.sendWindowStartAt.invalid) && (schedulerForm.controls.sendWindowStart.touched || schedulerForm.controls.sendWindowEnd.touched || schedulerForm.controls.sendWindowStartAt.touched)) {
 								<p class="field-error">Usa formato de hora valido (HH:mm).</p>
 							}
 
 							@if (hasSendWindowRangeError) {
 								<p class="field-error">La hora de inicio debe ser menor que la hora final.</p>
+							}
+
+							@if (hasSendWindowStartAtError) {
+								<p class="field-error">La hora de primer envio debe estar dentro de la ventana diaria.</p>
 							}
 						}
 					</div>
@@ -328,11 +370,14 @@
       @if (saveFeedback()) {
 				<p class="save-feedback" aria-live="polite">{{ saveFeedback() }}</p>
 			}
+			@if (isEditingTask()) {
+				<button type="button" class="clear-selection" (click)="cancelEditingTask()" [disabled]="isSending()">Cancelar edicion</button>
+			}
 			<button type="submit" class="save-button" [ngClass]="{'disable' : !canSubmitSchedule}" [disabled]="!canSubmitSchedule">
 				@if (isSending()) {
-					Enviando...
+					Guardando...
 				} @else {
-					Guardar Programacion
+					{{ isEditingTask() ? 'Guardar Cambios' : 'Guardar Programacion' }}
 				}
 			</button>
 			
@@ -442,6 +487,15 @@
 						</div>
 
 						<div class="scheduled-actions">
+							<button
+								type="button"
+								class="scheduled-action secondary"
+								(click)="editScheduledTask(task)"
+								[disabled]="isTaskActionRunning(task) || isSending() || isTaskEditLoading(task)"
+							>
+								{{ isTaskEditLoading(task) ? 'Cargando...' : 'Editar' }}
+							</button>
+
 							<button
 								type="button"
 								class="scheduled-action secondary"

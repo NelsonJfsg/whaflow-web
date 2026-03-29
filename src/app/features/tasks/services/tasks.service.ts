@@ -1,5 +1,5 @@
 
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -9,15 +9,26 @@ interface PrivateRecipientPayload {
   phone: string;
 }
 
+export interface SendWindowPayload {
+  start: string;
+  end: string;
+  start_at?: string;
+}
+
 interface SendMessagePayload {
   is_forwarded: boolean;
   message: string;
   frequency: number;
-  send_window?: {
-    start: string;
-    end: string;
-  };
+  send_window?: SendWindowPayload;
   recipients: PrivateRecipientPayload[];
+}
+
+export interface ScheduledTaskUpdatePayload {
+  is_forwarded?: boolean;
+  message?: string;
+  frequency?: number;
+  recipients?: PrivateRecipientPayload[];
+  send_window?: SendWindowPayload;
 }
 
 export interface WhatsAppGroupParticipant {
@@ -86,6 +97,7 @@ export interface ScheduledTaskItem {
   jobName: string;
   message: string;
   frequency: number;
+  sendWindow?: SendWindowPayload;
   status: string;
   isForwarded: boolean;
   recipients: Array<{ name: string; phone: string }>;
@@ -109,34 +121,43 @@ export class TasksService {
   private readonly endpoint = `${environment.apiCore}/tasks/send-message`;
   private readonly scheduledEndpoint = `${environment.apiCore}/tasks/scheduled`;
   private readonly groupsEndpoint = `${environment.apiCore}/groups/my`;
-  private readonly authToken = 'Basic bmVsc29uamZzZzpuZWxzb24xMjQh';
-
-  private readonly headers = new HttpHeaders({
-    Authorization: this.authToken,
-    'Content-Type': 'application/json',
-  });
 
   sendMessage(payload: SendMessagePayload): Observable<unknown> {
-    return this.httpClient.post(this.endpoint, payload, { headers: this.headers });
+    return this.httpClient.post(this.endpoint, payload);
   }
 
   getScheduledTasks(): Observable<unknown> {
-    return this.httpClient.get(this.scheduledEndpoint, { headers: this.headers });
+    return this.httpClient.get(this.scheduledEndpoint);
+  }
+
+  getScheduledTaskById(id: string): Observable<unknown> {
+    const target = `${this.scheduledEndpoint}/${encodeURIComponent(id)}`;
+    return this.httpClient.get(target);
   }
 
   getMyGroups(): Observable<unknown> {
-    return this.httpClient.get(this.groupsEndpoint, { headers: this.headers });
+    return this.httpClient.get(this.groupsEndpoint);
   }
 
   updateScheduledTaskActionById(id: string, action: ScheduledTaskAction): Observable<unknown> {
     const target = `${this.scheduledEndpoint}/${encodeURIComponent(id)}/action`;
-    return this.httpClient.patch(target, { action }, { headers: this.headers });
+    return this.httpClient.patch(target, { action });
+  }
+
+  updateScheduledTaskById(id: string, payload: ScheduledTaskUpdatePayload): Observable<unknown> {
+    const target = `${this.scheduledEndpoint}/${encodeURIComponent(id)}`;
+    return this.httpClient.patch(target, payload);
   }
 
   normalizeScheduledTasks(payload: unknown): ScheduledTaskItem[] {
     const list = this.extractTaskList(payload);
 
     return list.map((item, index) => this.normalizeTask(item, index));
+  }
+
+  normalizeScheduledTask(payload: unknown): ScheduledTaskItem {
+    const single = this.extractSingleTask(payload);
+    return this.normalizeTask(single, 0);
   }
 
   normalizeMyGroups(payload: unknown): WhatsAppGroup[] {
@@ -178,6 +199,19 @@ export class TasksService {
     return [];
   }
 
+  private extractSingleTask(payload: unknown): unknown {
+    const record = this.asRecord(payload);
+    if (!record) {
+      return payload;
+    }
+
+    const taskFromCandidates = [record['task'], record['data'], record['item'], record['result']]
+      .map((candidate) => this.asRecord(candidate))
+      .find((candidate) => !!candidate);
+
+    return taskFromCandidates ?? payload;
+  }
+
   private normalizeTask(task: unknown, index: number): ScheduledTaskItem {
     const record = this.asRecord(task);
     if (!record) {
@@ -186,6 +220,7 @@ export class TasksService {
         jobName: '',
         message: '',
         frequency: 0,
+        sendWindow: undefined,
         status: 'unknown',
         isForwarded: false,
         recipients: [],
@@ -204,6 +239,7 @@ export class TasksService {
     const createdAt = this.firstDateString(record, ['created_at', 'createdAt']);
     const lastRunAt = this.firstDateString(record, ['last_run_at', 'lastRunAt', 'lastExecutionAt']);
     const nextRunAt = this.firstDateString(record, ['next_run_at', 'nextRunAt', 'runAt', 'scheduledFor']);
+    const sendWindow = this.parseSendWindow(record);
 
     return {
       id:
@@ -214,6 +250,7 @@ export class TasksService {
       jobName,
       message: this.firstString(record, ['message', 'text', 'body']) || '',
       frequency: this.firstNumber(record, ['frequencyInMinutes', 'frequency', 'interval', 'intervalMinutes', 'every']) ?? 0,
+      sendWindow,
       status: this.firstString(record, ['status', 'state']) || ((this.firstBoolean(record, ['isActive']) ?? true) ? 'active' : 'inactive'),
       isForwarded: this.firstBoolean(record, ['is_forwarded', 'isForwarded']) ?? false,
       recipients,
@@ -253,6 +290,37 @@ export class TasksService {
         return { name, phone };
       })
       .filter((item): item is { name: string; phone: string } => item !== null);
+  }
+
+  private parseSendWindow(source: Record<string, unknown>): SendWindowPayload | undefined {
+    const nested = this.asRecord(source['send_window']) ?? this.asRecord(source['sendWindow']);
+    if (nested) {
+      const start = this.firstString(nested, ['start']);
+      const end = this.firstString(nested, ['end']);
+      const startAt = this.firstString(nested, ['start_at', 'startAt']);
+      if (!start || !end) {
+        return undefined;
+      }
+
+      return {
+        start,
+        end,
+        ...(startAt ? { start_at: startAt } : {}),
+      };
+    }
+
+    const start = this.firstString(source, ['sendWindowStart', 'windowStart']);
+    const end = this.firstString(source, ['sendWindowEnd', 'windowEnd']);
+    const startAt = this.firstString(source, ['sendWindowStartAt', 'windowStartAt']);
+    if (!start || !end) {
+      return undefined;
+    }
+
+    return {
+      start,
+      end,
+      ...(startAt ? { start_at: startAt } : {}),
+    };
   }
 
   private firstString(source: Record<string, unknown>, keys: string[]): string | null {

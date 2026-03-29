@@ -51,8 +51,13 @@ export class LoginPage {
       .login(this.loginForm.getRawValue())
       .pipe(finalize(() => this.isSubmitting.set(false)))
       .subscribe({
-        next: (response : any) => {
-          const accessToken = this.authService.extractToken(response) || 'session-active';
+        next: (response: unknown) => {
+          const accessToken = this.authService.extractToken(response);
+          if (!accessToken) {
+            this.loginError.set('La respuesta de autenticacion no incluyo access token.');
+            return;
+          }
+
           const refreshToken = this.authService.extractRefreshToken(response);
           const userName = this.authService.extractUserName(response);
           
