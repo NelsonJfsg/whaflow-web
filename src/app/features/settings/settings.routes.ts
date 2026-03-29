@@ -5,6 +5,6 @@ export const SettingsRoutes : Routes = [
   {
     path : '',
     component : SettingsPage,
-    data : {title : 'Settings'}
+    data : {title : 'Configuración'}
   }
 ];

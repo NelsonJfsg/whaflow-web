@@ -193,7 +193,17 @@
 								<div class="time-field">
 									<label class="time-field-label" for="send-window-start-at">Primer envio (opcional)</label>
 									<div class="time-input-wrap">
-										<input id="send-window-start-at" class="time-input" formControlName="sendWindowStartAt" [ngxTimepicker]="sendWindowStartAtPicker" [format]="24" readonly aria-readonly="true" />
+										<input id="send-window-start-at" class="time-input time-input-with-clear" formControlName="sendWindowStartAt" [ngxTimepicker]="sendWindowStartAtPicker" [format]="24" readonly aria-readonly="true" />
+										@if (schedulerForm.controls.sendWindowStartAt.value.trim().length > 0) {
+											<button
+												type="button"
+												class="time-input-clear"
+												aria-label="Limpiar primer envio"
+												(click)="clearSendWindowStartAt()"
+											>
+												<span aria-hidden="true">x</span>
+											</button>
+										}
 										<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowStartAtPicker">
 											<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
 												<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

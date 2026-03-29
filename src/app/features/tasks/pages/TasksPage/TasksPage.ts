@@ -170,6 +170,17 @@ export class TasksPage implements OnInit {
     this.schedulerForm.controls.sendWindowEnd.setValue(value);
   }
 
+  protected clearSendWindowStartAt(): void {
+    const control = this.schedulerForm.controls.sendWindowStartAt;
+    if (control.value.trim().length === 0) {
+      return;
+    }
+
+    control.setValue('');
+    control.markAsDirty();
+    control.markAsTouched();
+  }
+
   protected get hasSendWindowRangeError(): boolean {
     const { sendWindowStart, sendWindowEnd, useSendWindow } = this.schedulerForm.controls;
     if (!this.canUseSendWindow || !useSendWindow.value) {
@@ -199,7 +210,7 @@ export class TasksPage implements OnInit {
       return false;
     }
 
-    const interacted = sendWindowStartAt.touched || sendWindowStartAt.dirty;
+    const interacted = sendWindowStartAt.touched || sendWindowStartAt.dirty || startAt.length > 0;
     return interacted && !this.isSendWindowStartAtValid();
   }
 
