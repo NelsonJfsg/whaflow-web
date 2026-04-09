@@ -156,39 +156,40 @@
 							</div>
 						</div>
 
-						@if (schedulerForm.controls.useSendWindow.value) {
 							<div class="send-window-grid">
-								<div class="time-field">
-									<label class="time-field-label" for="send-window-start">Desde</label>
-									<div class="time-input-wrap">
-										<input id="send-window-start" class="time-input" formControlName="sendWindowStart" [ngxTimepicker]="sendWindowStartPicker" [format]="24" readonly aria-readonly="true" />
-										<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowStartPicker">
-											<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
-												<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-													<circle cx="12" cy="12" r="9"></circle>
-													<path d="M12 7v5l3 2"></path>
-												</svg>
-											</span>
-										</ngx-material-timepicker-toggle>
+								@if (schedulerForm.controls.useSendWindow.value) {
+									<div class="time-field">
+										<label class="time-field-label" for="send-window-start">Desde</label>
+										<div class="time-input-wrap">
+											<input id="send-window-start" class="time-input" formControlName="sendWindowStart" [ngxTimepicker]="sendWindowStartPicker" [format]="24" readonly aria-readonly="true" />
+											<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowStartPicker">
+												<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
+													<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+														<circle cx="12" cy="12" r="9"></circle>
+														<path d="M12 7v5l3 2"></path>
+													</svg>
+												</span>
+											</ngx-material-timepicker-toggle>
+										</div>
+										<ngx-material-timepicker #sendWindowStartPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
 									</div>
-									<ngx-material-timepicker #sendWindowStartPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
-								</div>
 
-								<div class="time-field">
-									<label class="time-field-label" for="send-window-end">Hasta</label>
-									<div class="time-input-wrap">
-										<input id="send-window-end" class="time-input" formControlName="sendWindowEnd" [ngxTimepicker]="sendWindowEndPicker" [format]="24" readonly aria-readonly="true" />
-										<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowEndPicker">
-											<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
-												<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-													<circle cx="12" cy="12" r="9"></circle>
-													<path d="M12 7v5l3 2"></path>
-												</svg>
-											</span>
-										</ngx-material-timepicker-toggle>
+									<div class="time-field">
+										<label class="time-field-label" for="send-window-end">Hasta</label>
+										<div class="time-input-wrap">
+											<input id="send-window-end" class="time-input" formControlName="sendWindowEnd" [ngxTimepicker]="sendWindowEndPicker" [format]="24" readonly aria-readonly="true" />
+											<ngx-material-timepicker-toggle class="time-input-toggle" [for]="sendWindowEndPicker">
+												<span ngxMaterialTimepickerToggleIcon class="timepicker-toggle-icon" aria-hidden="true">
+													<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+														<circle cx="12" cy="12" r="9"></circle>
+														<path d="M12 7v5l3 2"></path>
+													</svg>
+												</span>
+											</ngx-material-timepicker-toggle>
+										</div>
+										<ngx-material-timepicker #sendWindowEndPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
 									</div>
-									<ngx-material-timepicker #sendWindowEndPicker [format]="24" timepickerClass="tasks-timepicker-dark"></ngx-material-timepicker>
-								</div>
+								}
 
 								<div class="time-field">
 									<label class="time-field-label" for="send-window-start-at">Primer envio (opcional)</label>
@@ -222,13 +223,12 @@
 							}
 
 							@if (hasSendWindowRangeError) {
-								<p class="field-error">La hora de inicio debe ser menor que la hora final.</p>
+								<p class="field-error">La hora de inicio y la hora final no pueden ser iguales.</p>
 							}
 
 							@if (hasSendWindowStartAtError) {
-								<p class="field-error">La hora de primer envio debe estar dentro de la ventana diaria.</p>
+								<p class="field-error">La hora de primer envio debe tener formato valido y, si usas ventana, estar dentro del rango.</p>
 							}
-						}
 					</div>
 
 					@if (schedulerForm.controls.frequency.touched && schedulerForm.controls.frequency.value <= 0) {
