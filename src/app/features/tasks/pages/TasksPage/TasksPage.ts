@@ -24,6 +24,8 @@ type FrequencyOption = 15 | 30 | 60 | 'custom';
 type RecipientType = 'private' | 'group';
 const TIME_24H_FORMAT = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const DEFAULT_LADA = '+52';
+const FULL_DAY_WINDOW_START = '00:00';
+const FULL_DAY_WINDOW_END = '23:59';
 
 interface Recipient {
   name: string;
@@ -201,7 +203,7 @@ export class TasksPage implements OnInit {
 
   protected get hasSendWindowStartAtError(): boolean {
     const { sendWindowStartAt, useSendWindow } = this.schedulerForm.controls;
-    if (!this.canUseSendWindow || !useSendWindow.value) {
+    if (!this.canUseSendWindow) {
       return false;
     }
 
@@ -211,7 +213,19 @@ export class TasksPage implements OnInit {
     }
 
     const interacted = sendWindowStartAt.touched || sendWindowStartAt.dirty || startAt.length > 0;
-    return interacted && !this.isSendWindowStartAtValid();
+    if (!interacted) {
+      return false;
+    }
+
+    if (!TIME_24H_FORMAT.test(startAt)) {
+      return true;
+    }
+
+    if (!useSendWindow.value) {
+      return false;
+    }
+
+    return !this.isSendWindowStartAtValid();
   }
 
   protected get canAddRecipient(): boolean {
@@ -796,13 +810,31 @@ export class TasksPage implements OnInit {
 
   private buildSendWindow(shouldRepeat: boolean): { start: string; end: string; start_at?: string } | null | undefined {
     const useSendWindow = this.schedulerForm.controls.useSendWindow.value;
-    if (!shouldRepeat || !useSendWindow) {
+    if (!shouldRepeat) {
       return undefined;
+    }
+
+    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
+
+    if (!useSendWindow) {
+      if (startAt.length === 0) {
+        return undefined;
+      }
+
+      if (!TIME_24H_FORMAT.test(startAt)) {
+        this.schedulerForm.controls.sendWindowStartAt.markAsTouched();
+        return null;
+      }
+
+      return {
+        start: FULL_DAY_WINDOW_START,
+        end: FULL_DAY_WINDOW_END,
+        start_at: startAt,
+      };
     }
 
     const start = this.schedulerForm.controls.sendWindowStart.value.trim();
     const end = this.schedulerForm.controls.sendWindowEnd.value.trim();
-    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
 
     const startIsValid = TIME_24H_FORMAT.test(start);
     const endIsValid = TIME_24H_FORMAT.test(end);
@@ -833,8 +865,13 @@ export class TasksPage implements OnInit {
 
   private isSendWindowValidForSubmit(shouldRepeat: boolean): boolean {
     const useSendWindow = this.schedulerForm.controls.useSendWindow.value;
-    if (!shouldRepeat || !useSendWindow) {
+    if (!shouldRepeat) {
       return true;
+    }
+
+    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
+    if (!useSendWindow) {
+      return startAt.length === 0 || TIME_24H_FORMAT.test(startAt);
     }
 
     const start = this.schedulerForm.controls.sendWindowStart.value.trim();
@@ -870,11 +907,19 @@ export class TasksPage implements OnInit {
     const endMinutes = this.toMinutes(end);
     const startAtMinutes = this.toMinutes(startAt);
 
-    return startAtMinutes >= startMinutes && startAtMinutes <= endMinutes;
+    return this.isTimeWithinWindow(startAtMinutes, startMinutes, endMinutes);
   }
 
   private isStartTimeBeforeEndTime(start: string, end: string): boolean {
-    return this.toMinutes(start) < this.toMinutes(end);
+    return this.toMinutes(start) !== this.toMinutes(end);
+  }
+
+  private isTimeWithinWindow(targetMinutes: number, startMinutes: number, endMinutes: number): boolean {
+    if (startMinutes < endMinutes) {
+      return targetMinutes >= startMinutes && targetMinutes <= endMinutes;
+    }
+
+    return targetMinutes >= startMinutes || targetMinutes <= endMinutes;
   }
 
   private toMinutes(time: string): number {
@@ -914,9 +959,12 @@ export class TasksPage implements OnInit {
     this.schedulerForm.controls.repeat.setValue(shouldRepeat);
     this.schedulerForm.controls.frequency.setValue(task.frequency);
     this.schedulerForm.controls.frequencyOption.setValue(shouldRepeat ? frequencyOption : 15);
-    this.schedulerForm.controls.useSendWindow.setValue(!!task.sendWindow);
-    this.schedulerForm.controls.sendWindowStart.setValue(task.sendWindow?.start ?? '08:00');
-    this.schedulerForm.controls.sendWindowEnd.setValue(task.sendWindow?.end ?? '18:00');
+    const isFullDayWindow = task.sendWindow?.start === FULL_DAY_WINDOW_START && task.sendWindow?.end === FULL_DAY_WINDOW_END;
+    const hasCustomWindow = !!task.sendWindow && !isFullDayWindow;
+
+    this.schedulerForm.controls.useSendWindow.setValue(hasCustomWindow);
+    this.schedulerForm.controls.sendWindowStart.setValue(hasCustomWindow ? (task.sendWindow?.start ?? '08:00') : '08:00');
+    this.schedulerForm.controls.sendWindowEnd.setValue(hasCustomWindow ? (task.sendWindow?.end ?? '18:00') : '18:00');
     this.schedulerForm.controls.sendWindowStartAt.setValue(task.sendWindow?.start_at ?? '');
 
     this.resetPrivateRecipientSelection();
@@ -997,13 +1045,26 @@ export class TasksPage implements OnInit {
 
   private buildSendWindowPayload(shouldRepeat: boolean): SendWindowPayload | undefined {
     const useSendWindow = this.schedulerForm.controls.useSendWindow.value;
-    if (!shouldRepeat || !useSendWindow) {
+    if (!shouldRepeat) {
       return undefined;
+    }
+
+    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
+
+    if (!useSendWindow) {
+      if (!startAt) {
+        return undefined;
+      }
+
+      return {
+        start: FULL_DAY_WINDOW_START,
+        end: FULL_DAY_WINDOW_END,
+        start_at: startAt,
+      };
     }
 
     const start = this.schedulerForm.controls.sendWindowStart.value.trim();
     const end = this.schedulerForm.controls.sendWindowEnd.value.trim();
-    const startAt = this.schedulerForm.controls.sendWindowStartAt.value.trim();
 
     return {
       start,
